@@ -179,7 +179,13 @@ tpl: [
 		
 		get-col-number: function [face event][ 
 			col: get-draw-col face event
-			get-data-col face col
+			col: either col <= frozen/x [
+				frozen-cols/:col
+			][
+				;col-index/(
+				col - frozen/x + current/x
+				;)
+			]
 		]
 
 		get-data-address: function [face event /with cell][
@@ -199,8 +205,6 @@ tpl: [
 			][
 				col-index/(col - frozen/x + current/x)
 			]
-			if face/options/auto-index [col: col - 1]
-			col
 		]
 
 		get-data-row: function [face row][
@@ -683,6 +687,28 @@ tpl: [
 			]
 		]
 
+		mark-point: function [face a /end][
+			n: pick [7 6] end
+			case [
+				all [a/x > 0 a/y > 0][
+					face/draw/(a/y)/(a/x)/:n
+				]
+				a/x > 0 [
+					y: either a/y = 0 [freeze-point/y][size/y]
+					as-pair face/draw/1/(a/x)/:n/x y
+				]
+				a/y > 0 [
+					x: either a/x = 0 [freeze-point/x][size/x]
+					as-pair x face/draw/(a/y)/1/:n/y
+				]
+				true [
+					x: either a/x = 0 [freeze-point/x][size/x]
+					y: either a/y = 0 [freeze-point/y][size/y]
+					as-pair x y
+				]
+			]
+		]
+
 		adjust-marks: function [face][
 			system/view/auto-sync?: off
 			clear marks
@@ -696,42 +722,8 @@ tpl: [
 				c2: mark-address b 'x
 				a: as-pair c1 r1
 				b: as-pair c2 r2
-				p1: case [
-					all [a/x > 0 a/y > 0][
-						face/draw/(a/y)/(a/x)/6
-					]
-					a/x > 0 [
-						y: either a/y = 0 [freeze-point/y][size/y]
-						as-pair face/draw/1/(a/x)/6/x y
-					]
-					a/y > 0 [
-						x: either a/x = 0 [freeze-point/x][size/x]
-						as-pair x face/draw/(a/y)/1/6/y
-					]
-					true [
-						x: either a/x = 0 [freeze-point/x][size/x]
-						y: either a/y = 0 [freeze-point/y][size/y]
-						as-pair x y
-					]
-				]
-				p2: case [
-					all [b/x > 0 b/y > 0][
-						face/draw/(b/y)/(b/x)/7
-					]
-					b/x > 0 [
-						y: either b/y = 0 [freeze-point/y][size/y]
-						as-pair face/draw/1/(b/x)/7/x y
-					]
-					b/y > 0 [
-						x: either b/x = 0 [freeze-point/x][size/x]
-						as-pair x face/draw/(b/y)/1/7/y
-					]
-					true [
-						x: either b/x = 0 [freeze-point/x][size/x]
-						y: either b/y = 0 [freeze-point/y][size/y]
-						as-pair x y
-					]
-				]
+				p1: mark-point face a
+				p2: mark-point/end face b
 				;probe reduce [face/selected "r1c1" r1 c1 "r2c2" r2 c2 "a b" a b "p" p1 p2]
 				repend marks ['box p1 p2]
 			)
