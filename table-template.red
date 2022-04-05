@@ -678,8 +678,8 @@ tpl: [
 				][
 					frozen/:dim + i - current/:dim
 				]
-				i <= current/:dim [0]
-				i > (current/:dim + grid/:dim) [-1]
+				all [i i <= current/:dim] [0]
+				all [i i > (current/:dim + grid/:dim)] [-1]
 			]
 		]
 
