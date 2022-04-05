@@ -1,10 +1,8 @@
 Red []
 #include %table-template.red
-;leak-check [
 style 'table tpl
 
 file: %data/RV291_29062020120209394.csv  ;%data/annual-enterprise-survey-2020-financial-year-provisional-csv.csv ;
-;file: load-csv/with read %lines.txt tab
 view/flags/options [  ;/no-wait
 	on-resize [
 		system/view/auto-sync: off 
@@ -46,12 +44,11 @@ view/flags/options [  ;/no-wait
 		]
 	]
 	below 
-	h: h1 "Example Table" ;field ;return
+	h: h1 "Example Table" 
 	tb: table 617x267 focus data file ;10x20;[["x" "A" "B"]["y" 1 2]["z" 3 4]] ;with [options: [auto-index: #[false]]];
 ] 'resize [
 	text: form file 
 	menu: ["File" ["Open" open "Save" save "Save as ..." save-as]]]
-;]
 ;tb/actors/data: load tb/data 
 ;tb/actors/init/force tb
 ;show tb
