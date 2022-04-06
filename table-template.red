@@ -1247,6 +1247,8 @@ tpl: [
 				right     [1x0]
 				page-up   [as-pair 0 negate grid/y]
 				page-down [as-pair 0 grid/y]
+				home      [as-pair negate grid/x 0]
+				end       [as-pair grid/x 0]
 			]
 			either all [active step] [
 				;by-key?: true  ;?? 
@@ -1256,7 +1258,7 @@ tpl: [
 					any [
 						all [key = 'down    frozen/y + grid/y = active/y]
 						all [key = 'up      frozen/y + 1    = active/y]
-						find [page-up page-down] key
+						all [find [page-up page-down] key  active/y > frozen/y]
 					][
 						if key = 'up [szy: get-size 'y current/y]
 						df: scroll face 'y step/y
@@ -1326,9 +1328,17 @@ tpl: [
 						]
 					]
 				][;probe reduce [active step active + step]
+					case [
+						all [key = 'down  active/y = frozen/y][scroll face 'y top/y - current/y]
+						all [key = 'right active/x = frozen/x][scroll face 'x top/x - current/x]
+						all [key = 'page-down active/y <= frozen/y][
+							scroll face 'y top/y - current/y + grid/y
+							step/y: frozen/y - active/y + 1
+						]
+					]
 					active: active + step
 					active: max 1x1 min grid + frozen active
-					either find event/flags 'shift [
+					either event/shift? [
 						mark-active/extend face active
 					][	mark-active face active]
 				]
