@@ -257,27 +257,31 @@ tpl: [
 		
 		; INITIATION
 
+		init-data: func [spec /local row][
+			data: make block! spec/y 
+			loop spec/y [
+				row: make block! spec/x
+				loop spec/x [append row copy ""]
+				append/only data row
+			]
+		]
+
 		set-data: func [face spec /local row][
 			switch type?/word spec [
 				file!  [data: load spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
+				url!   [data: either face/options/delimiter [
+					load-csv/with read-thru spec face/options/delimiter
+				][
+					load-csv read-thru spec
+				]]
 				block! [data: spec]
 				pair!  [
 					total: spec
-					data: make block! spec/y 
-					loop spec/y [
-						row: make block! spec/x
-						loop spec/x [append row copy ""]
-						append/only data row
-					]
+					init-data total
 				]
 				none! [
-					probe total: spec: face/size / box
-					data: make block! spec/y 
-					loop spec/y [
-						row: make block! spec/x
-						loop spec/x [append row copy ""]
-						append/only data row
-					]
+					total: face/size / box
+					init-data total
 				]
 			]
 		]
@@ -1317,9 +1321,9 @@ tpl: [
 			]
 		]
 		
-		on-created: func [face event /local spec row][
+		on-created: func [face event][
 			make-scroller face
-			set-data face spec
+			set-data face face/data
 			init face
 		]
 		
