@@ -37,6 +37,7 @@ tpl: [
 			"Freeze"        freeze-col
 			"Unfreeze"      unfreeze-col
 			"Default width" default-width
+			"Full height"   full-height
 			"Edit ..."      edit-column
 			"Type"   [
 				"integer!" integer! 
@@ -57,18 +58,15 @@ tpl: [
 	]
 	actors: [
 		scroller: 
-		data: loaded:       ;current: ; down:
+		data: loaded:  
 		indexes: filtered: 
-		default-row-index: row-index: ;current-row-index: 
+		default-row-index: row-index: 
 		default-col-index: col-index: 
-		sizes:
+		sizes: full-height-col:
 		on-border?: border-col: border-row:
 		tbl-editor: 
-		marks: last-mark: 
-		active: active-offset: 
-		anchor: anchor-offset: 
+		marks: anchor: active: pos:
 		extra?: extend?: none
-		;by-key?: none ; latest: latest-offset:
 		
 		total: size: 0x0
 		frozen: freeze-point: 0x0
@@ -85,21 +83,25 @@ tpl: [
 		selection-data: make block! 10000
 		selection-figure: make block! 10
 		
+		frozen-nums: make map! 2
+		frozen-nums/x: frozen-cols
+		frozen-nums/y: frozen-rows
+		
+		index: make map! 2
+
+		
 		set-border: function [face ofs dim][
 			ofs: ofs/:dim
 			cum: 0     ;accumulator
-			frozen-nums: get pick [frozen-cols frozen-rows] dim = 'x
-			index: get pick [col-index row-index] dim = 'x
-			forall frozen-nums [
-				fro: frozen-nums/1
-				cum: cum + get-size dim fro
-				if 2 >= absolute cum - ofs [return index? frozen-nums]
+			repeat i frozen/:dim [
+				cum: cum + get-size dim frozen-nums/:i
+				if 2 >= absolute cum - ofs [return i]
 			]
 			cur: current/:dim
 			fro: frozen/:dim
 			repeat i grid/:dim [
 				run: cur + i
-				cum: cum + get-size dim index/:run
+				cum: cum + get-size dim index/:dim/:run
 				if 2 >= absolute cum - ofs [return fro + i]
 			]
 			0
@@ -115,11 +117,10 @@ tpl: [
 		set-grid: function [face][
 			foreach dim [x y][
 				cur: current/:dim
-				index: get pick [row-index col-index]  dim = 'y
 				sz: 0
 				repeat i total/:dim - cur [
 					j: cur + i
-					sz: sz + get-size dim index/:j
+					sz: sz + get-size dim index/:dim/:j
 					if sz >= grid-size/:dim [
 						grid-offset/:dim: sz - grid-size/:dim 
 						break
@@ -138,7 +139,6 @@ tpl: [
 		]
 		
 		set-grid-offset: func [face /local end][
-			;probe reduce [frozen grid end: get-draw-offset/end face frozen + grid]
 			end: get-draw-offset/end face frozen + grid
 			grid-offset: end - size
 		]
@@ -182,24 +182,22 @@ tpl: [
 			col: either col <= frozen/x [
 				frozen-cols/:col
 			][
-				;col-index/(
-				col - frozen/x + current/x
-				;)
+				col-index/(col - frozen/x + current/x)
 			]
 		]
 
 		get-data-address: function [face event /with cell][
 			if not cell [cell: get-draw-address face event]
-			out: get-logic-address face cell
+			out: get-logic-address cell
 			if face/options/auto-index [out/x: out/x - 1]
 			out
 		]
 		
-		get-logic-address: func [face cell][
-			as-pair get-data-col face cell/x  get-data-row face cell/y
+		get-logic-address: func [cell][
+			as-pair get-data-col cell/x  get-data-row cell/y
 		]
-
-		get-data-col: function [face col][
+		
+		get-data-col: function [col][
 			col: either col <= frozen/x [
 				frozen-cols/:col
 			][
@@ -207,11 +205,40 @@ tpl: [
 			]
 		]
 
-		get-data-row: function [face row][
+		get-data-row: function [row][
 			either row <= frozen/y [
 				frozen-rows/:row
 			][
 				row-index/(row - frozen/y + current/y)
+			]
+		]
+		
+		get-data-index: func [num dim][
+			either dim = 'x [get-data-col num][get-data-row num]
+		]
+
+		get-index-address: func [draw-cell][
+			as-pair get-index-col draw-cell/x  get-index-row draw-cell/y
+		]
+		
+		get-index: func [num dim][
+			either dim = 'x [get-index-col num][get-index-row num]
+		]
+
+		get-index-col: function [draw-col][
+			either draw-col <= frozen/x [
+				index? find col-index frozen-cols/:draw-col
+			][
+				draw-col - frozen/x + current/x
+			]
+		]
+
+		get-index-row: function [draw-row][
+			either draw-row <= frozen/y [
+				;probe reduce [frozen/y draw-row frozen-rows/:draw-row index? find row-index frozen-rows/:draw-row]
+				index? find row-index frozen-rows/:draw-row
+			][
+				draw-row - frozen/y + current/y
 			]
 		]
 
@@ -219,9 +246,8 @@ tpl: [
 			foreach dim [x y][
 				t: total/:dim
 				j: sz: 0
-				index: get pick [row-index col-index] dim = 'y
 				while [
-					r: index/(t - j)
+					r: index/:dim/(t - j)
 					sz: sz + s: get-size dim r
 					sz <= grid-size/:dim
 				][j: j + 1]
@@ -230,6 +256,31 @@ tpl: [
 		]
 		
 		; INITIATION
+
+		set-data: func [face spec /local row][
+			switch type?/word spec [
+				file!  [data: load spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
+				block! [data: spec]
+				pair!  [
+					total: spec
+					data: make block! spec/y 
+					loop spec/y [
+						row: make block! spec/x
+						loop spec/x [append row copy ""]
+						append/only data row
+					]
+				]
+				none! [
+					probe total: spec: face/size / box
+					data: make block! spec/y 
+					loop spec/y [
+						row: make block! spec/x
+						loop spec/x [append row copy ""]
+						append/only data row
+					]
+				]
+			]
+		]
 		
 		init-grid: func [face /local i][
 			total/y: length? data
@@ -247,7 +298,7 @@ tpl: [
 			clear frozen-cols
 		]
 
-		init-indices: func [face /force /local i][
+		init-indices: func [face force /local i][
 			;Prepare indexes
 			either all [indexes not force] [
 				;clear indexes
@@ -258,18 +309,19 @@ tpl: [
 			][
 				indexes: make map! total/x                             ;Room for index for each column
 				filtered: 
-					copy row-index:                                       ;Active row-index
+					copy row-index:                                    ;Active row-index
 					copy default-row-index: make block! total/y        ;Room for row numbers
 				col-index: copy default-col-index: make block! total/x ;Active col-index and room for col numbers
 			
-				repeat i total/y [append default-row-index i]    ;Default is just simple sequence in initial order
+				repeat i total/y [append default-row-index i]          ;Default is just simple sequence in initial order
 				if face/options/auto-index [
-					indexes/1: copy default-row-index               ;Default is for first (auto-index) column
+					indexes/1: copy default-row-index                  ;Default is for first (auto-index) column
 				]
-				append clear row-index default-row-index            ;Set default as active index
-				
+				append clear row-index default-row-index               ;Set default as active index
 				repeat i total/x [append default-col-index i] 
 				append clear col-index default-col-index
+				index/x: col-index
+				index/y: row-index
 			]
 
 			set-last-page
@@ -281,7 +333,6 @@ tpl: [
 			repeat i grid/y [
 				row: make block! grid/x 
 				repeat j grid/x  [
-					cell: make block! 11    ;each column has 11 elements, see below
 					s: (as-pair j i) - 1 * box
 					text: form either face/options/auto-index [
 						either j = 1 [i][c: col-index/(j - 1) data/:i/:c]
@@ -289,9 +340,11 @@ tpl: [
 						data/:i/(col-index/:j)
 					]
 					;Cell structure
+					cell: make block! 11    ;each column has the following 11 elements
+					color: pick [white snow] odd? i
 					repend cell [
 						'line-width 1
-						'fill-pen pick [white snow] odd? i
+						'fill-pen color
 						'box s s + box
 						'clip s + 1 s + box - 1 
 						reduce [
@@ -302,7 +355,9 @@ tpl: [
 				]
 				append/only draw-block row
 			]
-			marks: insert tail face/draw: draw-block [line-width 2.5 fill-pen 0.0.0.220]
+			face/draw: draw-block
+			;Initialize marks
+			marks: insert tail face/draw [line-width 2.5 fill-pen 0.0.0.220]
 			mark-active face 1x1
 			set-grid-offset face
 		]
@@ -324,13 +379,13 @@ tpl: [
 			any [sizes/:dim/:idx box/:dim]
 		]
 		
-		get-color: func [i frozen][
-			case [frozen [silver] odd? i [white] 'else [snow]]
+		get-color: func [i frozen?][
+			case [frozen? [silver] odd? i [white] 'else [snow]]
 		]
 		
 		set-default-height: function [face event][
 			dr: get-draw-row face event
-			r:  get-data-row face dr
+			r:  get-data-row dr
 			if sz: sizes/y/:r [
 				remove/key sizes/y r
 				if dr <= frozen/y [
@@ -338,13 +393,13 @@ tpl: [
 					freeze-point/y: freeze-point/y + df
 				]
 				fill face
-				adjust-marks face
+				show-marks face
 			]
 		]
 		
 		set-default-width: function [face event][
 			dc: get-draw-col face event
-			c:  get-data-col face dc
+			c:  get-data-col dc
 			if sz: sizes/x/:c [
 				remove/key sizes/x c
 				if dc <= frozen/x [
@@ -355,32 +410,39 @@ tpl: [
 			]
 		]
 		
+		set-full-height: func [face event][
+			full-height-col: get-draw-col face event
+			fill face
+			adjust-scroller face
+			show-marks face
+		]
+		
 		; FILLING
 		
-		fill-cell: function [face cell r i x frozen /size p0 p1][
-			either x <= total/x [
-				cell/11/3: form either face/options/auto-index [
-					either x = 1 [r][c: col-index/(x - 1) data/:r/:c]
-				][
-					data/:r/(col-index/:x)
-				]
-				cell/4: get-color i frozen
+		fill-cell: function [face cell data-row-idx draw-row-idx index-col frozen? /size p0 p1][
+			;probe reduce [cell data-row-idx draw-row-idx index-col frozen]
+			either index-col <= total/x [
+				data-col-idx: col-index/:index-col
+				if auto: face/options/auto-index [data-col-idx: data-col-idx - 1]
+				cell/11/3: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
+				cell/4: get-color draw-row-idx frozen?
 				if size [
 					cell/9: (cell/6:  p0) + 1
 					cell/10: (cell/7:  p1) - 1 
 					cell/11/2:  4x2  +  p0
 				]
 			][
-				fix-cell-outside cell 'x ;cell/11/2/x:  4 + cell/9/x: cell/6/x: self/size/x
+				fix-cell-outside cell 'x 
 			]
 		]
 		
-		add-cell: func [face row r i c x p0 p1 frozen][
-			if face/options/auto-index [x: x - 1]
-			text: either all [face/options/auto-index x = 0][form r][form data/:r/:x]
-			insert/only at row c compose/deep [
+		add-cell: function [face row data-row-idx draw-row-idx draw-col-idx index-col p0 p1 frozen?][
+			data-col-idx: col-index/:index-col
+			if auto: face/options/auto-index [data-col-idx: data-col-idx - 1]
+			text: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
+			insert/only at row draw-col-idx compose/deep [
 				line-width 1
-				fill-pen (get-color i frozen)
+				fill-pen (get-color draw-row-idx frozen?)
 				box (p0) (p1)
 				clip (p0 + 1) (p1 - 1) 
 				[
@@ -389,16 +451,16 @@ tpl: [
 			]
 		]
 
-		set-cell: func [face row x r i c px0 py0 py1 frozen][
-			sx: get-size 'x col-index/:x
+		set-cell: func [face row index-col data-row-idx draw-row-idx draw-col-idx px0 py0 py1 frozen?][
+			sx: get-size 'x col-index/:index-col
 			px1: px0 + sx
 			p0: as-pair px0 py0
 			p1: as-pair px1 py1
-			either block? cell: row/:c [
-				fill-cell/size face cell r i x frozen p0 p1
+			either block? cell: row/:draw-col-idx [
+				fill-cell/size face cell data-row-idx draw-row-idx index-col frozen? p0 p1
 			][
-				if x <= total/x [
-					add-cell face row r i c x p0 p1 frozen
+				if index-col <= total/x [
+					add-cell face row data-row-idx draw-row-idx draw-col-idx index-col p0 p1 frozen?
 				]
 			]
 			px1
@@ -408,23 +470,23 @@ tpl: [
 			cell/11/2/:dim: cell/9/:dim: cell/10/:dim: cell/6/:dim: cell/7/:dim: size/:dim
 		]
 		
-		set-cells: function [face row r i py0 py1 frozen][
+		set-cells: function [face row data-row-idx draw-row-idx py0 py1 frozen?][
 			px0: freeze-point/x
-			c: 0
+			grid-col: 0
 			while [px0 < size/x][
-				c: c + 1
-				x: current/x + c
-				either x <= total/x [
-					px0: set-cell face row x r i c px0 py0 py1 frozen
-					grid/x: c
+				grid-col: grid-col + 1
+				index-col: current/x + grid-col
+				either index-col <= total/x [
+					px0: set-cell face row index-col data-row-idx draw-row-idx grid-col px0 py0 py1 frozen?
+					grid/x: grid-col
 				][
-					cell: row/:c
+					cell: row/:grid-col
 					either all [block? cell cell/6/x < self/size/x] [ 
 						fix-cell-outside cell 'x
 					][break]
 				]
 			]
-			cell: row/(c + 1)
+			cell: row/(grid-col + 1)
 			if all [block? cell cell/6/x < self/size/x] [ 
 				fix-cell-outside cell 'x
 			]
@@ -435,32 +497,45 @@ tpl: [
 			system/view/auto-sync?: off
 			
 			py0: 0
-			i: 0
-			while [all [py0 < size/y i < total/y]][
-				i: i + 1
-				frozen?: i <= frozen/y
-				r: get-data-row face i
-				row: face/draw/:i
-				unless block? row [
-					insert/only at face/draw i row: copy [] 
+			draw-row-idx: 0
+			index-row: 0
+			while [all [py0 < size/y index-row < total/y]][
+				draw-row-idx: draw-row-idx + 1
+				frozen?: draw-row-idx <= frozen/y
+				data-row-idx: get-data-row draw-row-idx
+				index-row: get-index-row draw-row-idx
+				draw-row: face/draw/:draw-row-idx
+				unless block? draw-row [
+					insert/only at face/draw draw-row-idx draw-row: copy [] 
 					self/marks: next marks
-					self/last-mark: next last-mark
 				]
-				sy: get-size 'y r
+				either all [
+					full-height-col 
+					draw-row-idx > frozen/y
+					data-col-idx: get-data-col full-height-col
+					not sizes/y/:data-row-idx
+				][
+					d: data/:data-row-idx/:data-col-idx
+					n: 0 parse d [any [lf (n: n + 1) | skip]]
+					sizes/y/:data-row-idx: sy: n + 1 * 16 ;box/y
+				][
+					sy: get-size 'y data-row-idx
+				]
 				py1: py0 + sy
+				
 				px0: 0
-				repeat c frozen/x [
-					x: frozen-cols/:c
-					px0: set-cell face row x r i c px0 py0 py1 true
+				repeat draw-col-idx frozen/x [
+					index-col: get-index-col draw-col-idx
+					px0: set-cell face draw-row index-col data-row-idx draw-row-idx draw-col-idx px0 py0 py1 true
 				]
-				row: at row frozen/x + 1
-				j: i - frozen/y
-				set-cells face row r j py0 py1 frozen?
-				grid/y: j
+				draw-row: at draw-row frozen/x + 1
+				grid-row-idx: draw-row-idx - frozen/y
+				set-cells face draw-row data-row-idx grid-row-idx py0 py1 frozen?
+				grid/y: grid-row-idx
 				py0: py1
 			]                                                                                                                                                     
-			while [all [block? row: face/draw/(i: i + 1) row/1/6/y < size/y]][
-				foreach cell row [fix-cell-outside cell 'y]
+			while [all [block? draw-row: face/draw/(draw-row-idx: draw-row-idx + 1) draw-row/1/6/y < size/y]][
+				foreach cell draw-row [fix-cell-outside cell 'y]
 			]
 			scroller/y/page-size: grid/y
 			scroller/x/page-size: grid/x
@@ -468,29 +543,6 @@ tpl: [
 			show face
 			system/view/auto-sync?: on
 			recycle/on
-		]
-
-		adjust-fill: function [face dim len][
-			fro: frozen
-			records: either dim = 'y [grid/y][fro/y + grid/y]
-			columns: either dim = 'x [grid/x][fro/x + grid/x]
-			repeat rec records [
-				if dim = 'y [rec: fro/y + rec]
-				row: face/draw/:rec
-				repeat col columns [
-					if dim = 'x [col: fro/x + col]
-					cell: row/:col
-					cell/6/:dim: cell/6/:dim + len 
-					cell/7/:dim: cell/7/:dim + len
-					either len > 0 [cell/9/:dim: cell/6/:dim + 1][
-						pos: either dim = 'x [col][rec]
-						if pos - fro/:dim > 1 [cell/9/:dim: cell/9/:dim + len + 1]
-					]
-					cell/10/:dim: cell/10/:dim + len - 1
-					cell/11/2/:dim: cell/11/2/:dim + len
-				]
-			]
-			grid-offset/:dim: len
 		]
 
 		;---------
@@ -577,113 +629,74 @@ tpl: [
 
 		edit-column: function [face event][
 			if code: ask-code [
-				code: load code 
+				code: load/all code 
 				code: back insert next code '_
 				col: get-col-number face event
 				if not all [face/options/auto-index col = 0][
 					foreach row at data top/y + 1 [
-						change code row/:col
+						change/only code row/:col
 						row/:col: do head code
 					]
 					fill face
 				]
 			]
 		]
+		
 		; MARKS
 		
-		add-mark: func [face ofs][
-			repend marks ['box ofs/1 ofs/2] 
-			set-last-mark
+		set-new-mark: func [face cell][
+			append face/selected anchor: cell 
 		]
 		
-		set-anchor: func [face cell][
-			anchor: cell
-			anchor-offset: get-draw-offset face anchor
-			get-logic-address face cell
-		]
-
-		move-anchor: function [dim step][
-			if any [anchor/:dim > frozen/:dim anchor/:dim <= 0][
-				anchor/:dim: anchor/:dim + step
-				index: get pick [col-index row-index] dim = 'x
-				cur: either step > 0 [current/:dim][current/:dim + 1]
-				size: get-size dim index/:cur
-				anchor-offset/1/:dim: anchor-offset/1/:dim + (size: step * size)
-				anchor-offset/2/:dim: anchor-offset/2/:dim + size
-			]
-		]
-		
-		set-new-mark: func [face cell ofs][
-			append face/selected set-anchor face cell
-			add-mark face ofs
-		]
-		
-		set-last-mark: does [
-			last-mark: skip tail marks -2
-		]
-		
-		extend-last-mark: does [;probe reduce [anchor-offset active-offset last-mark]
-			last-mark/1: min anchor-offset/1 active-offset/1
-			last-mark/2: max anchor-offset/2 active-offset/2
-		]
-		
-		mark-active: func [face cell /extend /extra /local active-data][
-			active-offset: get-draw-offset face cell
-			active: cell
-			active-data: get-logic-address face cell
+		mark-active: func [face cell /extend /extra][
+			pos: cell
+			active: get-index-address cell
 			either pair? last face/draw [
 				case [
 					extend [
 						extend?: true
-						extend-last-mark
 						either '- = first skip tail face/selected -2 [
-							change back tail face/selected active-data
+							change back tail face/selected active
 						][
-							repend face/selected ['- active-data]
+							repend face/selected ['- active]
 						]
 					]
 					extra  [
 						extend?: false extra?: true
-						set-new-mark face cell active-offset
+						set-new-mark face active
 					]
 					true   [
-						if extra? [
-							clear skip marks 3 
-							extra?: false 
-							set-last-mark
-						]
-						extend?: false
-						append clear face/selected set-anchor face cell
-						change/part next marks active-offset 2
+						extra?: extend?: false
+						clear face/selected
+						set-new-mark face active 
 					]
 				]
-			] [set-new-mark face cell active-offset]
-			;probe face/selected
+			] [
+				set-new-mark face active
+			] 
+			show-marks face
 		]
 		
 		unmark-active: func [face][
 			if active [
 				clear marks
-				extra?: false
-				active: none
+				extend?: extra?: false
+				anchor: active: pos: none
 				clear face/selected
 			]
 		]
 		
 		mark-address: function [s dim][
-			fro: get pick [frozen-rows frozen-cols] dim = 'y
-			idx: get pick [row-index   col-index]   dim = 'y
 			case [
-				found: find fro s/:dim [index? found]
-				all [
-					found: find idx s/:dim
-					(i: index? found) > current/:dim
-					i <= (current/:dim + grid/:dim)
-				][
-					frozen/:dim + i - current/:dim
+				s/:dim > top/:dim [
+					case [
+						s/:dim <= current/:dim [0]
+						s/:dim > (current/:dim + grid/:dim) [-1]
+						true [frozen/:dim + s/:dim - current/:dim];probe reduce [frozen/:dim s/:dim current/:dim frozen/:dim + s/:dim - current/:dim] 
+					]
 				]
-				all [i i <= current/:dim] [0]
-				all [i i > (current/:dim + grid/:dim)] [-1]
+				found: find frozen-nums/:dim index/:dim/(s/:dim) [index? found]
+				
 			]
 		]
 
@@ -709,7 +722,7 @@ tpl: [
 			]
 		]
 
-		adjust-marks: function [face][
+		show-marks: function [face][
 			system/view/auto-sync?: off
 			clear marks
 			parse face/selected [any [
@@ -765,10 +778,11 @@ tpl: [
 		]
 
 		filter: function [face col [integer!] crit /extern filtered][
-			clear filtered
+			append clear filtered frozen-rows ;include frozen rows in result first
 			c: col
 			if auto: face/options/auto-index [c: c - 1];col-index/(col - 1)
 			either block? crit [
+				
 				switch/default type?/word w: crit/1 [
 					word! [
 						case [
@@ -781,18 +795,29 @@ tpl: [
 									]
 								]
 							]
-							function? get/any w [
+							any-function? get/any w [
+								crit: back insert next crit '_
 								forall row-index [
-									row: first row-index
-									case [ ;???
-										w = 'parse [insert next crit row]
+									if not find frozen-rows row: first row-index [
+										change/only crit either all [auto col = 1] [row][data/:row/:c]
+										if do head crit [append filtered row]
 									]
 								]
 							]
 						]
 					]
 					path! [
-						
+						case [
+							any-function? get/any w/1 [
+								crit: back insert next crit '_
+								forall row-index [
+									if not find frozen-rows row: first row-index [
+										change/only crit either all [auto col = 1] [row][data/:row/:c]
+										if do head crit [append filtered row]
+									]
+								]
+							]
+						]
 					]
 					paren! [
 						
@@ -802,7 +827,12 @@ tpl: [
 						normalize-range crit  ;Use charset spec to select rows
 						filtered: intersect row-index crit
 					][
-						
+						insert crit [_ =]
+						forall row-index [
+							if not find frozen-rows row: first row-index [
+								if find crit data/:row/:c [append filtered row]
+							]
+						]
 					]
 				]
 			][  ;Single entry
@@ -834,14 +864,7 @@ tpl: [
 			grid/:dim: grid/:dim - fro/:dim
 			set-freeze-point face 
 			if fro/:dim > 0 [
-				either dim = 'y [
-					index: row-index 
-					block: frozen-rows
-				][
-					index: col-index 
-					block: frozen-cols
-				]
-				append block copy/part at index cur/:dim + 1 fro/:dim
+				append frozen-nums/:dim copy/part at index/:dim cur/:dim + 1 fro/:dim
 			]
 			current/:dim: cur/:dim + fro/:dim
 			top/:dim: current/:dim ;- frozen/:dim
@@ -866,21 +889,15 @@ tpl: [
 		]
 
 		unfreeze: function [face dim][
-			;set pick [rows cols] dim = 'y to-integer face/size/:dim / box/:dim
-			anti: select [x y x] dim
-			top/:dim: current/:dim: 
-			;fro: frozen/:dim
-			
-			frozen/:dim: 0
+			top/:dim: current/:dim: frozen/:dim: 0
 			freeze-point/:dim: 0
 			grid-size/:dim: size/:dim
-			block: either dim = 'y [frozen-rows][frozen-cols]
 			scroller/:dim/position: 1 
-			clear block
+			clear frozen-nums/:dim
 			set-grid face
 			set-last-page
 			fill face
-			adjust-marks face
+			show-marks face
 			adjust-scroller face
 		]
 
@@ -899,28 +916,26 @@ tpl: [
 				]
 				ofs1: event/offset/:dim
 				df:   ofs1 - ofs0
-				num: either dim = 'x [
-					index: col-index
-					get-data-col face on-border?/x
-				][
-					index: row-index
-					get-data-row face on-border?/y
-				]
-				sz: get-size dim i: index/:num
-				sizes/:dim/:i: sz + df
-				if num <= frozen/:dim [freeze-point/:dim: freeze-point/:dim + df]
-				;probe reduce [active on-border?]
-				if active/:dim = on-border?/:dim [active-offset/2/:dim: active-offset/2/:dim + df]
-				if anchor/:dim = on-border?/:dim [anchor-offset/2/:dim: anchor-offset/2/:dim + df]
-				parse marks [any [
-				  p: pair! (
-					case [
-						4 >= absolute p/1/:dim - ofs1 [p/1/:dim: ofs1]
-						ofs1 < p/1/:dim [p/1/:dim: p/1/:dim + df]
+				num: get-index on-border?/:dim dim
+				case [
+					all [event/ctrl? on-border?/:dim = 1] [
+						clear sizes/:dim
+						box/:dim: box/:dim + df
 					]
-				  ) 
-				| skip
-				]]
+					event/ctrl? [
+						sz: get-size dim index/:dim/:num
+						i: num - 1
+						repeat n total/:dim - num + 1 [
+							sizes/:dim/(i + n): sz + df
+							;adjust freeze-point?
+						]
+					]
+					true [
+						sz: get-size dim i: index/:dim/:num
+						sizes/:dim/:i: sz + df
+						if on-border?/:dim <= frozen/:dim [freeze-point/:dim: freeze-point/:dim + df]
+					]
+				]
 			]
 		]
 
@@ -934,7 +949,7 @@ tpl: [
 			scroller/y: vscr
 		]
 		
-		scroll: function [face [object!] dim [word!] steps [integer!] /extern active][
+		scroll: function [face [object!] dim [word!] steps [integer!]][
 			if 0 <> step: set-scroller-pos face dim steps [
 				dif: calc-step-size dim step
 				current/:dim: current/:dim + step
@@ -962,14 +977,13 @@ tpl: [
 		]
 		
 		count-cells: function [face dim dir /by-keys][
-			index: get pick [row-index col-index] dim = 'y
 			case [
 				dir > 0 [
 					start: current/:dim + grid/:dim 
 					gsize: 0 
 					repeat count total/:dim - start [
 						start: start + 1
-						bsize: get-size dim index/:start
+						bsize: get-size dim index/:dim/:start
 						gsize: gsize + bsize
 						if grid-size/:dim <= gsize [break]
 					]
@@ -980,7 +994,7 @@ tpl: [
 					if start > 0 [
 						until [
 							count: count + 1
-							gsize: gsize + get-size dim index/:start
+							gsize: gsize + get-size dim index/:dim/:start
 							any [grid-size/:dim <= gsize 0 = start: start - 1]
 						]
 					]
@@ -1022,20 +1036,31 @@ tpl: [
 					append selection-figure fig: mx - mn + 1
 					repeat row fig/y [
 						repeat col fig/x [
-							if face/options/auto-index [col: col - 1]
 							d: mn - 1 + as-pair col row
-							append/only selection-data out: either all [face/options/auto-index d/x = 0][d/y][data/(d/y)/(d/x)]
+							d: as-pair col-index/(d/x) row-index/(d/y)
+							if face/options/auto-index [d/x: d/x - 1]
+							append/only selection-data out: 
+								either all [face/options/auto-index d/x = 0][
+									d/y
+								][
+									data/(d/y)/(d/x)
+								]
 							repend clpbrd [mold out tab]
 							if cut [data/(d/y)/(d/x): copy ""]
 						]
 						change back tail clpbrd lf
-					]
+					] 
 				)
 				|  pair! (
-					row: s/1/y
-					col: s/1/x
+					row: row-index/(s/1/y)
+					col: col-index/(s/1/x)
 					if face/options/auto-index [col: col - 1]
-					append selection-data out: either all [face/options/auto-index col = 0][s/1/y][data/:row/:col]
+					append selection-data out: 
+						either all [face/options/auto-index col = 0][
+							s/1/y
+						][
+							data/:row/:col
+						]
 					repend clpbrd [mold out tab]
 					if cut [data/:row/:col: copy ""]
 					append selection-figure 1x1
@@ -1047,17 +1072,19 @@ tpl: [
 		]
 		
 		paste-selection: function [face /transpose /extern selection-data][
-			start: -1 + get-logic-address face anchor
-			if face/options/auto-index [start/x: start/x - 1]
 			selection-data: head selection-data
 			case [
 				single? face/selected [
+					start: anchor - 1 
 					dim: pick [[y x] [x y]] transpose
 					foreach fig selection-figure [
 						repeat row fig/(dim/2) [
 							repeat col fig/(dim/1) [
+								pos: start + as-pair col row
+								pos: as-pair col-index/(pos/x) row-index/(pos/y)
+								if face/options/auto-index [pos/x: pos/x - 1]
 								d: first selection-data
-								data/(start/y + row)/(start/x + col): d
+								if not pos/x = 0 [data/(pos/y)/(pos/x): d]
 								selection-data: next selection-data
 							]
 						]
@@ -1104,51 +1131,28 @@ tpl: [
 			if 'end <> key: event/key [
 				dim: pick [y x] event/orientation = 'vertical
 				steps: count-steps face event dim
-				if steps [
-					step: scroll face dim steps
-					active/:dim: active/:dim - step
-					;anchor/:dim: anchor/:dim - step
-					move-anchor dim 0 - step
-					;probe reduce [step anchor active face/selected]
-					adjust-marks face
-				]
+				if steps [scroll face dim steps]
+				show-marks face
 			]
 		]
 
 		on-wheel: function [face event][;May-be switch shift and ctrl ?
 			dim: pick [x y] event/shift?
 			steps: to-integer -1 * event/picked * either event/ctrl? [grid/:dim][select [x 1 y 3] dim]
-			step: scroll face dim steps
-			move-anchor dim 0 - step
-			adjust-marks face
+			scroll face dim steps
+			show-marks face
 		]
 
-		on-down: func [face event /local cell][
+		on-down: func [face event][
 			set-focus face
-			frozen-cols: head frozen-cols
-			frozen-rows: head frozen-rows
-			either on-border?: on-border face event/offset [
-				if on-border?/x > 0 [
-					border-col: either on-border?/x <= frozen/x [
-						frozen-cols/(on-border?/x)
-					][
-						col-index/(on-border?/x - frozen/x + current/x)
-					]
-				]
-				on-border?/y > 0 [
-					border-row: either on-border?/y <= frozen/y [
-						frozen-rows/(on-border?/y)
-					][
-						row-index/(on-border?/y - frozen/y + current/y)
-					]
-				]
-			][
+			on-border?: on-border face event/offset
+			if not on-border? [
 				hide-editor
-				cell: get-draw-address face event
+				pos: get-draw-address face event
 				case [
-					event/shift? [mark-active/extend face cell]
-					event/ctrl?  [mark-active/extra face cell]
-					true [mark-active face cell]
+					event/shift? [mark-active/extend face pos]
+					event/ctrl?  [mark-active/extra face pos]
+					true [mark-active face pos]
 				]
 			]
 		]
@@ -1158,20 +1162,19 @@ tpl: [
 			unmark-active face
 		]
 
-		on-over: function [face event /extern active active-offset anchor anchor-offset][;probe reduce [event/down? on-border?]
+		on-over: function [face event][;probe reduce [event/down? on-border?]
 			if event/down? [
 				either on-border? [
 					adjust-border face event 'x
 					adjust-border face event 'y
 					fill face
+					show-marks face
 				][;probe reduce [event/offset/x  size/x event/offset/x > size/x]
 					case [
 						any [
-							all [event/offset/y > size/y 0 < step: scroll face 'y  1]
-							all [event/offset/y <= 0     0 > step: scroll face 'y -1]
+							all [event/offset/y > size/y           0 < step: scroll face 'y  1]
+							all [event/offset/y <= freeze-point/y  0 > step: scroll face 'y -1]
 						][
-							move-anchor 'y 0 - step
-							extend-last-mark
 							either '- = first s: skip tail face/selected -2 [
 								s/2/y: s/2/y + step
 							][
@@ -1179,13 +1182,12 @@ tpl: [
 								e/y: e/y + step
 								repend face/selected ['- e]
 							]
+							show-marks face
 						]
 						any [
-							all [event/offset/x >= size/x   0 < step: scroll face 'x  1] 
-							all [event/offset/x <= 0        0 > step: scroll face 'x -1]
+							all [event/offset/x >= size/x          0 < step: scroll face 'x  1] 
+							all [event/offset/x <= freeze-point/x  0 > step: scroll face 'x -1]
 						][
-							move-anchor 'x 0 - step
-							extend-last-mark
 							either '- = first s: skip tail face/selected -2 [
 								s/2/x: s/2/x + step
 							][
@@ -1193,10 +1195,11 @@ tpl: [
 								e/x: e/x + step
 								repend face/selected ['- e]
 							] 
+							show-marks face
 						]
 						true [
 							if attempt [adr: get-draw-address face event] [
-								if all [adr <> active] [
+								if all [adr <> pos] [
 									mark-active/extend face adr
 								]
 							]
@@ -1208,17 +1211,6 @@ tpl: [
 
 		on-up: function [face event][
 			if on-border? [
-				comment [
-					ofs0: face/draw/1/(on-border?/x)/6/x
-					ofs1: face/draw/1/(on-border?/x)/7/x
-					df: ofs1 - ofs0
-					self/frozen-cols: head frozen-cols
-					col: either on-border?/x <= frozen/x [
-						frozen-cols/(on-border?/x)
-					][
-						on-border?/x - frozen/x + current/x
-					]
-				]
 				set-grid-offset face
 				set-last-page
 			]
@@ -1247,106 +1239,79 @@ tpl: [
 				right     [1x0]
 				page-up   [as-pair 0 negate grid/y]
 				page-down [as-pair 0 grid/y]
-				home      [as-pair negate grid/x 0]
-				end       [as-pair grid/x 0]
+				home      [as-pair negate grid/x 0] ;TBD
+				end       [as-pair grid/x 0]        ;TBD
 			]
 			either all [active step] [
-				;by-key?: true  ;?? 
-				;probe reduce [key step ofs: get-draw-offset face active + step size ofs/2/x > size/x grid-offset/x]
-				;probe reduce [key "stp" step "act" active "gr" grid "ofs" get-draw-offset face active + step "tot" total/x "lp" last-page/x "cur" current/x]
-				either dim: case [
+				either dim: case [ ; Active mark on edge
 					any [
-						all [key = 'down    frozen/y + grid/y = active/y]
-						all [key = 'up      frozen/y + 1    = active/y]
-						all [find [page-up page-down] key  active/y > frozen/y]
+						all [key = 'down    frozen/y + grid/y = pos/y]
+						all [key = 'up      frozen/y + 1    = pos/y]
+						all [find [page-up page-down] key  pos/y > frozen/y]
 					][
-						if key = 'up [szy: get-size 'y current/y]
 						df: scroll face 'y step/y
 						switch key [
-							down      [szy: get-size 'y current/y + 1]
-							page-up   [if step/y < step/y: df [active/y: active/y - grid/y - step/y]]
-							page-down [if step/y > step/y: df [active/y: active/y + grid/y - step/y]]
+							page-up   [if step/y < step/y: df [pos/y: pos/y - grid/y - step/y]]
+							page-down [if step/y > step/y: df [pos/y: pos/y + grid/y - step/y]]
 						]
-						cell: box
 						'y
 					]
 					any [
-						all [key = 'right frozen/x + grid/x = active/x current/x < (total/x - last-page/x)]
-						all [key = 'left  frozen/x + 1    = active/x] 
-						all [key = 'right ofs: get-draw-offset face active + step ofs/2/x > size/x] 
+						all [key = 'right frozen/x + grid/x = pos/x current/x < (total/x - last-page/x)]
+						all [key = 'left  frozen/x + 1    = pos/x] 
+						all [key = 'right ofs: get-draw-offset face pos + step ofs/2/x > size/x] 
 					][
-						if key = 'left  [szx: get-size 'x current/x]
 						df: scroll face 'x step/x
-						if key = 'right [szx: get-size 'x current/x + 1]
 						step/x: df
-						if szx [cell: as-pair szx 0]
 						'x
 					]
 				][
-					active: max 1x1 min grid + frozen active
+					pos: max 1x1 min grid + frozen pos
 					either df = 0 [
 						if switch key [
-							up        [active/y: max 1 active/y - 1]
-							left      [active/x: max 1 active/x - 1]
-							page-up   [active/y: frozen/y + 1]
-							page-down [active/y: grid/y]
+							up        [pos/y: max 1 pos/y - 1]
+							left      [pos/x: max 1 pos/x - 1]
+							page-up   [pos/y: frozen/y + 1]
+							page-down [pos/y: grid/y]
 						][
 							either event/shift? [
-								mark-active/extend face active
-							][	mark-active face active]
+								mark-active/extend face pos
+							][	mark-active face pos]
 						]
 					][
 						if event/shift? [extend?: true]
-						;probe reduce [pos1 pos2  pos2 - pos1  "step" step  step * absolute pos2 - pos1 "cell" cell step * cell extend?]
-						;step: step * absolute pos2 - pos1
 						either any [extra? extend?] [
 							either '- = first s: skip tail face/selected -2 [
 								s/2: s/2 + step
 							][
 								repend face/selected ['- s/1 + step]
-							] 
-							cell: step * cell
-							anchor: anchor - step
-							anchor-offset/1: anchor-offset/1 - cell
-							anchor-offset/2: anchor-offset/2 - cell
-							active-offset: get-draw-offset face active
-							;probe reduce ["active" active "anchor" anchor "cell" cell]
-							parse marks [any ['box s: 2 pair! (
-								either 2 = length? s [
-									s/1/:dim: min anchor-offset/1/:dim active-offset/1/:dim
-									s/2/:dim: max anchor-offset/2/:dim active-offset/2/:dim
-								][
-									s/1: s/1 - cell
-									s/2: s/2 - cell
-								]
-							)]]
+							]  
+							show-marks face
 						][
-							;if all [key = 'right ofs: get-draw-offset face active + step ofs/2/x > size/x][
-							;	scroll face 'x 1 
-							;]
-							mark-active face active
+							mark-active face pos
 						]
 					]
-				][;probe reduce [active step active + step]
+				][ ;Active mark in center ;probe reduce [active step active + step]
 					case [
-						all [key = 'down  active/y = frozen/y][scroll face 'y top/y - current/y]
-						all [key = 'right active/x = frozen/x][scroll face 'x top/x - current/x]
-						all [key = 'page-down active/y <= frozen/y][
-							scroll face 'y top/y - current/y + grid/y
-							step/y: frozen/y - active/y + 1
+						all [key = 'down  pos/y = frozen/y][scroll face 'y top/y - current/y]
+						all [key = 'right pos/x = frozen/x][scroll face 'x top/x - current/x]
+						;all [key = 'up pos/y > grid/y][probe "hi"]
+						all [key = 'page-down pos/y <= frozen/y][
+							scroll face 'y top/y - current/y 
+							step/y: frozen/y - pos/y + grid/y
 						]
 					]
-					active: active + step
-					active: max 1x1 min grid + frozen active
+					pos: pos + step
+					pos: max 1x1 min grid + frozen pos
 					either event/shift? [
-						mark-active/extend face active
-					][	mark-active face active]
+						mark-active/extend face pos
+					][	mark-active face pos]
 				]
 			][
 				switch key [
 					#"^M" [
 						unless tbl-editor [make-editor face]
-						show-editor face none active
+						show-editor face none pos
 					]
 				]
 			]
@@ -1354,26 +1319,11 @@ tpl: [
 		
 		on-created: func [face event /local spec row][
 			make-scroller face
-			if spec: face/data [
-				switch type?/word spec [
-					file!  [data: load spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
-					block! [data: spec]
-					pair!  [
-						total: spec
-						data: make block! spec/y 
-						loop spec/y [
-							row: make block! spec/x
-							loop spec/x [append row copy ""]
-							append/only data row
-						]
-					]
-					none! []
-				]
-				init face
-			]
+			set-data face spec
+			init face
 		]
 		
-		on-sort: func [face event /loaded /down /local col c fro][
+		on-sort: func [face event /loaded /down /local col c fro idx][
 			recycle/off
 			col: get-col-number face event
 			if down [col: negate col]
@@ -1389,11 +1339,12 @@ tpl: [
 					;indexes/:col: make block! total/y
 					c: absolute col
 					if face/options/auto-index [c: c - 1]
-					sort/compare row-index function [a b][
+					idx: at row-index top/y + 1
+					sort/compare idx function [a b][;row-index
 						attempt [case [
-							all [loaded down][(load data/:a/:c) > (load data/:b/:c)]
-							down             [data/:a/:c > data/:b/:c]
+							all [loaded down][(load data/:a/:c) >  (load data/:b/:c)]
 							loaded           [(load data/:a/:c) <= (load data/:b/:c)]
+							down             [data/:a/:c >  data/:b/:c]
 							true             [data/:a/:c <= data/:b/:c]
 						]]
 					]
@@ -1428,6 +1379,7 @@ tpl: [
 				
 				default-height [set-default-height face event]
 				default-width  [set-default-width  face event]
+				full-height    [set-full-height    face event]
 				
 				sort-up          [on-sort face event]
 				sort-down        [on-sort/down face event]
