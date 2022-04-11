@@ -49,4 +49,8 @@ view [
     ]
 ]
 ```
+## Features
 
+Row and column sizes can be changed by dragging on cell border. If holding down control while dragging, sizes of all following rows/columns will be changed too. If ctrl-dragging on first row/column, default size is changed.
+
+Scrolling, wheeling, navigation by keys, sorting, filtering, freezing, copying/pasting, editing -- see local menu
