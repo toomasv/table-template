@@ -21,6 +21,7 @@ tpl: [
 			"Freeze"         freeze-row
 			"Unfreeze"       unfreeze-row
 			"Default height" default-height
+			"Hide"           hide-row
 			;"Insert"         insert-row
 			;"Append"         append-row
 			;"Edit"           edit-row
@@ -40,6 +41,8 @@ tpl: [
 			"Unfreeze"      unfreeze-col
 			"Default width" default-width
 			"Full height"   full-height
+			"Hide"          hide-col
+			;"Show"
 			;"Insert"        insert-col
 			;"Append"        append-col
 			"Edit ..."      edit-column
@@ -424,6 +427,7 @@ tpl: [
 					freeze-point/x: freeze-point/x + df
 				]
 				fill face
+				show-marks face
 			]
 		]
 		
@@ -717,6 +721,24 @@ tpl: [
 					;probe face/draw/:y
 				]
 			]
+		]
+		
+		hide-row: function [face event][
+			r: get-row-number face event
+			sizes/y/:r: 0
+			fill face
+			show-marks face
+		]
+		
+		hide-col: function [face event][
+			c: get-col-number face event
+			sizes/x/:c: 0
+			fill face
+			show-marks face
+		]
+		
+		show-row: function [face event][
+			
 		]
 		
 		insert-row: function [face event][
@@ -1508,8 +1530,11 @@ tpl: [
 					fill face
 				]
 				
+				hide-row    [hide-row   face event]
 				insert-row  [insert-row face event]
 				append-row  [append-row face event]
+				
+				hide-col    [hide-col   face event]
 				insert-col  [insert-col face event]
 				append-col  [append-col face event]
 				
