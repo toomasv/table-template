@@ -8,7 +8,7 @@ tpl: [
 	size: 300x200 
 	color: silver
 	flags: [scrollable all-over]
-	options: [auto-index: #[true]]
+	;options: [cursor: 'arrow] ;auto-index: #[true]]
 	extra: make map! [data: none draw: none table: none]
 	me: self
 	menu: [
@@ -21,6 +21,8 @@ tpl: [
 			"Freeze"         freeze-row
 			"Unfreeze"       unfreeze-row
 			"Default height" default-height
+			;"Insert"         insert-row
+			;"Append"         append-row
 			;"Edit"           edit-row
 		] 
 		"Column" [
@@ -38,6 +40,8 @@ tpl: [
 			"Unfreeze"      unfreeze-col
 			"Default width" default-width
 			"Full height"   full-height
+			;"Insert"        insert-col
+			;"Append"        append-col
 			"Edit ..."      edit-column
 			"Type"   [
 				"integer!" integer! 
@@ -47,6 +51,8 @@ tpl: [
 				"block!"   block! 
 				"date!"    date! 
 				"time!"    time!
+				"image!"   image!
+				"draw"     draw
 			]
 		]
 		"Selection" [
@@ -88,6 +94,7 @@ tpl: [
 		frozen-nums/y: frozen-rows
 		
 		index: make map! 2
+		col-types: make map! 5
 
 		
 		set-border: function [face ofs dim][
@@ -179,11 +186,17 @@ tpl: [
 		
 		get-col-number: function [face event][ 
 			col: get-draw-col face event
-			col: either col <= frozen/x [
-				frozen-cols/:col
-			][
-				col-index/(col - frozen/x + current/x)
-			]
+			get-data-col col
+			;col: either col <= frozen/x [
+			;	frozen-cols/:col
+			;][
+			;	col-index/(col - frozen/x + current/x)
+			;]
+		]
+		
+		get-row-number: function [face event][
+			row: get-draw-row face event
+			get-data-row row
 		]
 
 		get-data-address: function [face event /with cell][
@@ -428,12 +441,18 @@ tpl: [
 			either index-col <= total/x [
 				data-col-idx: col-index/:index-col
 				if auto: face/options/auto-index [data-col-idx: data-col-idx - 1]
-				cell/11/3: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
+				either all [t: col-types/:data-col-idx t = 'draw][
+					;print ["draw:" data-row-idx data-col-idx cell/11]
+					cell/11: compose/only [translate (cell/9) (data/:data-row-idx/:data-col-idx)]
+				][
+					;print ["text:" data-row-idx data-col-idx cell/11]
+					cell/11/3: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
+					if size [cell/11/2:  4x2  +  p0]
+				]
 				cell/4: get-color draw-row-idx frozen?
 				if size [
 					cell/9: (cell/6:  p0) + 1
 					cell/10: (cell/7:  p1) - 1 
-					cell/11/2:  4x2  +  p0
 				]
 			][
 				fix-cell-outside cell 'x 
@@ -443,15 +462,17 @@ tpl: [
 		add-cell: function [face row data-row-idx draw-row-idx draw-col-idx index-col p0 p1 frozen?][
 			data-col-idx: col-index/:index-col
 			if auto: face/options/auto-index [data-col-idx: data-col-idx - 1]
-			text: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
-			insert/only at row draw-col-idx compose/deep [
+			either draw?: all [t: col-types/:data-row-idx t = 'draw][
+				drawing: data/:data-row-idx/:data-col-idx
+			][
+				text: form either all [auto data-col-idx = 0] [data-row-idx][data/:data-row-idx/:data-col-idx]
+			]
+			insert/only at row draw-col-idx compose/only [
 				line-width 1
 				fill-pen (get-color draw-row-idx frozen?)
 				box (p0) (p1)
 				clip (p0 + 1) (p1 - 1) 
-				[
-					text (p0 + 4x2)  (text)
-				]
+				(reduce either draw? [['translate p0 + 1 drawing]][['text p0 + 4x2 text]])
 			]
 		]
 
@@ -639,13 +660,89 @@ tpl: [
 				if not all [face/options/auto-index col = 0][
 					foreach row at data top/y + 1 [
 						change/only code row/:col
-						row/:col: do head code
+						row/:col: head do head code
 					]
 					fill face
 				]
 			]
 		]
 		
+		set-col-type: function [face event][
+			col: get-col-number face event
+			if not all [auto: face/options/auto-index  col = 1][
+				if auto [col: col - 1]
+				type: reduce event/picked
+				case [
+					all [col-types/:col = 'draw event/picked <> 'draw][
+						col-types/:col: event/picked
+						col: get-draw-col face event
+						system/view/auto-sync?: off
+						foreach row face/draw [
+							either block? row [
+								if 'translate = first row/:col/11 [
+									cell: row/:col/11
+									cell/1: 'text 
+									cell/2: cell/2 + 3x1
+									cell/3:	form cell/3
+								] 
+							][break]
+						]
+						show face
+						system/view/auto-sync?: on
+						face/draw: face/draw
+					]
+					event/picked = 'string! [
+						col-types/:col: event/picked
+						forall data [if not find frozen-rows index? data [data/1/:col: mold data/1/:col]]
+					]
+					true [
+						col-types/:col: event/picked
+						forall data [if not find frozen-rows index? data [data/1/:col: to type data/1/:col]]
+					]
+				]
+			]
+		]
+		
+		draw-col: function [face event][
+			col: get-col-number face event
+			x:   get-draw-col face event
+			if not all [auto: face/options/auto-index  col = 1][
+				if auto [col: col - 1]
+				col-types/:col: 'draw
+				repeat y grid/y [
+					y: frozen/y + y
+					row: get-data-row y
+					cell: face/draw/:y/:x
+					cell/11: reduce ['translate cell/9 data/:row/:col]
+					;probe face/draw/:y
+				]
+			]
+		]
+		
+		insert-row: function [face event][
+			r: get-row-number face event
+			row: make block! total/x
+			loop total/x [append row copy ""]
+			insert/only at data r row
+			probe data
+			init/force face
+			;total/y: total/y + 1
+			;adjust-scroller face
+			;fill face
+		]
+
+		append-row: function [face event][
+			
+		]
+
+		insert-col: function [face event][
+			
+		]
+
+		append-col: function [face event][
+			
+		]
+
 		; MARKS
 		
 		set-new-mark: func [face cell][
@@ -1166,8 +1263,8 @@ tpl: [
 			unmark-active face
 		]
 
-		on-over: function [face event][;probe reduce [event/down? on-border?]
-			if event/down? [
+		on-over: function [face event /extern on-border?][;probe reduce [event/down? on-border?]
+			either event/down? [
 				either on-border? [
 					adjust-border face event 'x
 					adjust-border face event 'y
@@ -1210,6 +1307,14 @@ tpl: [
 						]
 					]
 				]
+			][
+			;	on-border?: on-border face event/offset 
+			;	face/options/cursor: case [
+			;		not on-border?   ['arrow]
+			;		on-border?/x > 0 ['resize-we]
+			;		on-border?/y > 0 ['resize-ns]
+			;		true             ['arrow]
+			;	]
 			]
 		]
 
@@ -1403,6 +1508,11 @@ tpl: [
 					fill face
 				]
 				
+				insert-row  [insert-row face event]
+				append-row  [append-row face event]
+				insert-col  [insert-col face event]
+				append-col  [append-col face event]
+				
 				edit-column [edit-column face event]
 				
 				copy-selection  [copy-selection face]
@@ -1410,14 +1520,9 @@ tpl: [
 				paste-selection [paste-selection face]
 				transpose       [paste-selection/transpose face]
 				
-				integer! float! percent! string! block! date! time! [
-					col: get-col-number face event
-					if not all [auto: face/options/auto-index  col = 1][
-						if auto [col: col - 1]
-						type: reduce event/picked
-						forall data [if not find frozen-rows index? data [data/1/:col: to type data/1/:col]]
-					]
-				]
+				draw            [draw-col face event]
+				integer! float! percent! string! block! 
+				date! time!     [set-col-type face event]
 			]
 		]
 	]
