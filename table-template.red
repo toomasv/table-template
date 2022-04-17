@@ -73,12 +73,12 @@ tpl: [
 	]
 	actors: [
 		scroller: 
-		data: loaded:  
+		data: ;loaded:  
 		indexes: filtered: 
 		default-row-index: row-index: 
 		default-col-index: col-index: 
 		sizes: full-height-col:
-		on-border?: border-col: border-row:
+		on-border?: 
 		tbl-editor: 
 		marks: anchor: active: pos:
 		extra?: extend?: none
@@ -211,10 +211,11 @@ tpl: [
 		; ACCESSING
 		
 		get-draw-address: function [face event][
-			col: get-draw-col face event
-			row: get-draw-row face event
-			;row: round/ceiling/to event/offset/y / box/y 1
-			as-pair col row
+			if all [
+				col: get-draw-col face event
+				row: get-draw-row face event
+				;row: round/ceiling/to event/offset/y / box/y 1
+			][as-pair col row]
 		]
 		
 		get-draw-offset: function [face cell /start /end][
@@ -228,19 +229,30 @@ tpl: [
 		]
 
 		get-draw-col: function [face event][
-			row: face/draw/1
-			col: length? row 
-			ofs: event/offset/x
-			forall row [if row/1/7/x > ofs [col: index? row break]]
-			col
+			if block? row: face/draw/1 [
+				ofs: event/offset/x
+				repeat i length? row [
+					case [
+						total/x < get-index i 'x [break]
+						row/:i/7/x > ofs [
+							col: i 
+							break
+						]
+					]
+				]
+				col
+			]
 		]
 		
 		get-draw-row: function [face event][
 			rows: face/draw 
 			;index? find/last face/draw block!
-			row: total/y ;frozen/y + grid/y
+			row: total/y - current/y - 1;frozen/y + grid/y ;
 			ofs: event/offset/y
-			repeat i row [if rows/:i/1/7/y > ofs [row: i break]]
+			repeat i row [
+				;if not block? rows/:i [return frozen/y + grid/y + 1] 
+				if rows/:i/1/7/y > ofs [row: i break]
+			]
 			row
 		]
 		
@@ -1650,7 +1662,8 @@ comment {
 					show-marks face
 				][
 					s: find/last face/selected pair!
-					if s/1 <> addr: get-draw-address face event [
+					;addr: get-draw-address face event
+					;if  s/1 <> addr [probe reduce [s/1 addr]
 						case [
 							any [
 								all [
@@ -1659,16 +1672,17 @@ comment {
 								]
 								all [
 									s/1/y > frozen/y
-									frozen/y = addr/y
+									event/offset/y <= freeze-point/y
 									0 > step: scroll face 'y -1
 								]
 								all [
 									s/1/y = frozen/y
-									addr/y > frozen/y
+									event/offset/y > freeze-point/y
 									0 > scroll face 'y top/y - current/y
 									step: 1
 								]
 							][
+								active/y: active/y + step
 								either '- = s/-1 [
 									s/1/y: s/1/y + step
 								][
@@ -1685,16 +1699,17 @@ comment {
 								] 
 								all [
 									s/1/x > frozen/x
-									frozen/x = addr/x
+									event/offset/x <= freeze-point/x
 									0 > step: scroll face 'x -1
 								]
 								all [
 									s/1/x = frozen/x
-									addr/x > frozen/x
+									event/offset/x > freeze-point/x
 									0 > scroll face 'x top/x - current/x
 									step: 1
 								]
 							][
+								active/x: active/x + step
 								either '- = s/-1 [
 									s/1/x: s/1/x + step
 								][
@@ -1705,14 +1720,14 @@ comment {
 								show-marks face
 							]
 							true [
-								if attempt [adr: get-draw-address face event] [
-									if all [adr <> pos] [
-										mark-active/extend face adr
+								if attempt [addr: get-draw-address face event] [
+									if all [addr addr <> pos] [
+										mark-active/extend face addr
 									]
 								]
 							]
 						]
-					]
+					;]
 				]
 			]
 		]
