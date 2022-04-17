@@ -1677,7 +1677,7 @@ comment {
 								]
 								all [
 									s/1/y = frozen/y
-									event/offset/y > freeze-point/y
+									event/offset/y >= freeze-point/y
 									0 > scroll face 'y top/y - current/y
 									step: 1
 								]
@@ -1704,7 +1704,7 @@ comment {
 								]
 								all [
 									s/1/x = frozen/x
-									event/offset/x > freeze-point/x
+									event/offset/x >= freeze-point/x
 									0 > scroll face 'x top/x - current/x
 									step: 1
 								]
