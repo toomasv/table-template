@@ -14,9 +14,9 @@ This will create an empty table with 7x20 grid. Default cell size is 100x25. Bot
 
 Grid size of table can be determined separately, e.g.
 ```
-view [table 717x517 data 10x50 options [auto-index: #[false]]
+view [table 717x517 data 10x50 options [auto-index: #[true]]
 ```
-When `auto-index` is set to `true` an extra columun will be created, automatically enumerated. By this the original order of rows can be restored whenever necessary.
+When `auto-index` is set to `true` an extra column will be created, automatically enumerated. By this the original order of rows can be restored whenever necessary.
 This will create table with eleven columns (10 requested + 1 auto-index) and 50 rows, but in previous boundaries.
 
 When instead of grid size a block is presented as data, this block is interpreted as table. Block should consist of row blocks of equal size. E.g.
