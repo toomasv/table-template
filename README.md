@@ -8,11 +8,17 @@ style 'table tbl
 ```
 After that table style can be used in layout, as e.g.
 ```
+view [table]
+```
+This will create an empty table with default size of 317x217 and grid 3x8. Default cell size is 100x25. Both vertial and horizontal scrollers are always included. Scrollers are 17 points thick.
+
+Specifying size for table will fill the extra space with additional cells.
+```
 view [table 717x517]]
 ```
-This will create an empty table with 7x20 grid. Default cell size is 100x25. Both vertial and horizontal scrollers are always included. Scrollers are 17 points thick.
+This will create an empty table with 7x20 grid.
 
-Grid size of table can be determined separately, e.g.
+Grid size of table can be specified separately, e.g.
 ```
 view [table 717x517 data 10x50 options [auto-index: #[true]]
 ```
@@ -25,7 +31,7 @@ view [table 717x517 data [["" A B][1 First Row][2 Second Row]]]
 ```
 Values are formed to be presented in table.
 
-Instead of giving data diretly as block, file name or url may be specified, to be loaded as table, e.g.
+Instead of giving data directly as block, file name or url may be specified, to be loaded as table, e.g.
 ```
 view [
     table 717x515 
