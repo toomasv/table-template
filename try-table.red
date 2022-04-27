@@ -1,7 +1,6 @@
 Red [Needs: 'View]
-#include %style.red
-#include %table-template.red
-;style 'table tbl
+tbl: #include %table-template.red
+style 'table tbl
 
 file: %data/RV291_29062020120209394.csv  ;%data/annual-enterprise-survey-2020-financial-year-provisional-csv.csv ;
 view/flags/options [  ;/no-wait
@@ -14,7 +13,7 @@ view/flags/options [  ;/no-wait
 	actors: object [
 		on-resizing: func [face event][
 			tb/size: face/size - as-pair 20 30 + caption/size/y 
-			table-ctx/resize tb
+			tb/actors/resize tb
 		]
 		on-resize: func [face event][
 			face/actors/on-resizing face event
@@ -24,20 +23,20 @@ view/flags/options [  ;/no-wait
 				open [
 					if file: request-file/title "Open file" [
 						tb/data: file 
-						tb/table/data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
-						table-ctx/init tb 
+						tb/actors/data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
+						tb/actors/init tb 
 						face/text: form file
 					]
 				]
 				save [
 					either file? tb/data [
 						switch suffix? tb/data [
-							%.red [out: new-line/all tb/table/data true write tb/data out]
-							%.csv [write tb/data to-csv tb/table/data]
+							%.red [out: new-line/all tb/actors/data true write tb/data out]
+							%.csv [write tb/data to-csv tb/actors/data]
 						]
 					][
 						if file: request-file/save/title "Save file as" [
-							write file tb/table/data
+							write file tb/actors/data
 							tb/data: file
 							face/text: form file
 						]
@@ -45,7 +44,7 @@ view/flags/options [  ;/no-wait
 				]
 				save-as [
 					if file: request-file/save/title "Save file as" [
-						write file tb/table/data
+						write file tb/actors/data
 						tb/data: file
 						face/text: form file
 					]
@@ -54,7 +53,7 @@ view/flags/options [  ;/no-wait
 		]
 	]
 ]
-;tb/table/data: load tb/data 
-;tb/table/init/force tb
+;tb/actors/data: load tb/data 
+;tb/actors/init/force tb
 ;show tb
 ;do-events
