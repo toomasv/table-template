@@ -1,6 +1,7 @@
 Red []
 ;#include %../utils/leak-check.red
 #include %style.red
+#include %CSV.red
 #include %re.red
 ~: make op! func [a b][re a b]
 tbl: [
@@ -369,7 +370,7 @@ tbl: [
 
 		set-data: func [face [object!] spec [file! url! block! pair! none!] /local row][
 			switch type?/word spec [
-				file!  [data: load spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
+				file!  [data: load-csv read spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
 				url!   [data: either face/options/delimiter [
 					load-csv/with read-thru spec face/options/delimiter
 				][
@@ -1491,6 +1492,8 @@ tbl: [
 								pos/y: frozen/y + grid/y + ofs
 							]
 							step/y: 0
+							y: 'done
+							false
 						]
 						b: all [active/x > (edge: current/x + grid/x)][
 							ofs: active/x + step/x - edge
@@ -1501,26 +1504,32 @@ tbl: [
 								pos/x: frozen/x + grid/x + ofs
 							]
 							step/x: 0
+							x: 'done
+							false
 						]
-						c: all [active/y > top/y step/y <> 0 active/y <= current/y][
+						c: all [active/y > top/y active/y <= current/y 'y <> 'done][
 							scroll face 'y active/y - current/y - 1 + step/y
 							pos/y: frozen/y + 1
 							step/y: 0
+							y: 'done
+							false
 						]
-						d: all [active/x > top/x step/x <> 0 active/x <= current/x][
+						d: all [active/x > top/x step/x <> 0 active/x <= current/x 'x <> 'done][
 							scroll face 'x active/x - current/x - 1 + step/x
 							pos/x: frozen/x + 1
 							step/x: 0
+							x: 'done
+							false
 						]
-						false []
+						;false []
 						;any [a b c d][false]
-					][]
+					][false]
 					; Active mark on edge
 					dim: case [ 
 						any [
-							all [key = 'down    frozen/y + grid/y = pos/y]
-							all [key = 'up      frozen/y + 1    = pos/y]
-							all [find [page-up page-down] key step/y <> 0  pos/y > frozen/y]
+							all [key = 'down    frozen/y + grid/y = pos/y y <> 'done]
+							all [key = 'up      frozen/y + 1    = pos/y y <> 'done]
+							all [find [page-up page-down] key pos/y > frozen/y y <> 'done]
 						][
 							df: scroll face 'y step/y
 							switch key [
@@ -1530,9 +1539,9 @@ tbl: [
 							'y
 						]
 						any [
-							all [key = 'right frozen/x + grid/x = pos/x current/x < (total/x - last-page/x)]
-							all [key = 'left  frozen/x + 1    = pos/x] 
-							all [key = 'right ofs: get-draw-offset face pos + step ofs/2/x > size/x] 
+							all [key = 'right frozen/x + grid/x = pos/x current/x < (total/x - last-page/x) x <> 'done]
+							all [key = 'left  frozen/x + 1    = pos/x x <> 'done] 
+							all [key = 'right ofs: get-draw-offset face pos + step ofs/2/x > size/x x <> 'done] 
 						][
 							df: scroll face 'x step/x
 							step/x: df
@@ -1568,10 +1577,10 @@ tbl: [
 					;Active mark in center ;probe reduce [active step active + step]
 					true [ 
 						case [
-							all [key = 'down  pos/y = frozen/y][scroll face 'y top/y - current/y]
-							all [key = 'right pos/x = frozen/x][scroll face 'x top/x - current/x]
+							all [key = 'down  pos/y = frozen/y y <> 'done][scroll face 'y top/y - current/y]
+							all [key = 'right pos/x = frozen/x x <> 'done][scroll face 'x top/x - current/x]
 							;all [key = 'up pos/y > grid/y][probe "hi"]
-							all [key = 'page-down step/y <> 0 pos/y <= frozen/y][
+							all [key = 'page-down pos/y <= frozen/y y <> 'done][
 								scroll face 'y top/y - current/y 
 								step/y: frozen/y - pos/y + grid/y
 							]
