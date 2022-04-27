@@ -3,8 +3,8 @@ Template for table style
 
 To enable table style:
 ```
-#include %table-template.red
-style 'table tpl
+tbl: #include %table-template.red
+style 'table tbl
 ```
 After that table style can be used in layout, as e.g.
 ```
