@@ -1,4 +1,7 @@
-Red [Needs: 'View]
+Red [
+    Needs: 'View
+    Description: "Just an example of usage and playfield."
+]
 tbl: #include %table-template.red
 style 'table tbl
 
