@@ -1372,11 +1372,10 @@ tbl: [
 			case [
 				single? face/selected [
 					start: anchor - 1 
-					dim: pick [[y x] [x y]] transpose
 					foreach fig selection-figure [
-						repeat row fig/(dim/2) [
-							repeat col fig/(dim/1) [
-								pos: start + as-pair col row
+						repeat y fig/y [
+							repeat x fig/x [
+								pos: start + either transpose [as-pair y x][as-pair x y]
 								pos: as-pair col-index/(pos/x) row-index/(pos/y)
 								if face/options/auto-index [pos/x: pos/x - 1]
 								d: first selection-data
@@ -1384,6 +1383,7 @@ tbl: [
 								selection-data: next selection-data
 							]
 						]
+						start: start + as-pair 0 y
 					]
 				]
 				true [
