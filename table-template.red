@@ -849,21 +849,33 @@ tbl: [
 			]
 		]
 
-		hide-row: function [face [object!] event [event! none!]][
-			r: get-row-number face event
-			sizes/y/:r: 0
+		hide-row: function [face [object!] event [event! integer!]][
+			row: either integer? event [event][get-row-number face event]
+			sizes/y/:row: 0
 			fill face
 			show-marks face
 		]
 		
-		hide-col: function [face [object!] event [event! none!]][
-			c: get-col-number face event
-			sizes/x/:c: 0
+		hide-rows: function [face [object!] rows [block!]][
+			foreach row rows [sizes/y/:row: 0]
+			fill face
+			show-marks face			
+		]
+		
+		hide-column: function [face [object!] event [event! integer!]][
+			col: either integer? event [event][get-col-number face event]
+			sizes/x/:col: 0
 			fill face
 			show-marks face
 		]
 		
-		unhide: function [face [object!] event [event! none!] dim [word!]][
+		hide-columns: function [face [object!] cols [block!]][
+			foreach col cols [sizes/x/:col: 0]
+			fill face
+			show-marks face
+		]
+		
+		unhide: function [face [object!] event [event! none!] dim [word!]][ ;TBD
 			either dim = 'all [
 				
 			][
@@ -1650,7 +1662,7 @@ tbl: [
 				insert-row  [insert-row face event]
 				append-row  [append-row face]
 				
-				hide-col    [hide-col   face event]
+				hide-col    [hide-column   face event]
 				insert-col  [insert-col face event]
 				append-col  [append-col face]
 				
@@ -1663,7 +1675,7 @@ tbl: [
 				
 				unhide-all      [unhide face event 'all]
 				unhide-row      [unhide face event 'y]
-				unhide-column   [unhide face event 'x]
+				unhide-col      [unhide face event 'x]
 				
 				draw            [draw-col face event]
 				do              [do-col   face event]
