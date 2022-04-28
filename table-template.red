@@ -746,10 +746,12 @@ tbl: [
 		update-data: function [face [object!]][
 			switch type?/word e: face/extra/data [
 				pair! [
-					type: type? data/(e/y)/(e/x)
-					data/(e/y)/(e/x): to type tx: face/text
-					probe e
-					face/extra/table/draw/(e/y)/(e/x)/11/3: tx
+					if e/x > 0 [
+						if face/extra/table/options/auto-index [e/x: e/x + 1]
+						type: type? data/(e/y)/(e/x)
+						data/(e/y)/(e/x): to type tx: face/text
+						face/extra/table/draw/(e/y)/(e/x)/11/3: tx
+					]
 				]
 			] 
 		]
