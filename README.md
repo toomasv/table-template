@@ -57,6 +57,20 @@ view [
 
 ## Features
 
-Row and column sizes can be changed by dragging on cell border. If holding down control while dragging, sizes of all following rows/columns will be changed too. If ctrl-dragging on first row/column, default size is changed.
+**Row and column sizes** can be changed by dragging on cell border. If holding down control while dragging, sizes of all following rows/columns will be changed too. If ctrl-dragging on first row/column, default size is changed.
 
-Scrolling, wheeling, navigation by keys, sorting, filtering, freezing, copying/pasting, editing -- see local menu
+
+**Scrolling** will move the whole grid together with selection. **Wheeling** will sroll table vertically by 3 rows, with ctrl-down by page. Shift-wheel scrolls table horizontally.
+
+Navigation by keys moves **selection**, extending it with shift-down. Moving selection outside of visual borders will automatically scroll table if not in end already. Selection is also moved by clicking on cells (if not on/near border), extending selection with shift-down and/or ctrl-down.
+
+**Freezing** of rows and/or columns is enabled from local menu. Right-click on row/column/cell which you want to freeze and choose "Freeze" from submenu of cell, row or column. Frozen rows/columns are dark-colored. Freezing can be repeated, e.g. if table is scrolled after previous freezing. "Unfreeze" removes all freezing correspondingly from cells/rows/columns. To unfreeze, it is not necessary to place mouse on corresponding row/column as when freezing.
+
+**Sorting** is currently possible by single column only. With mouse on column to be sorted by, select "Up" or "Down" from Column->Sort submenu. Table is sorted from non-frozen rows downward. If table is created from csv file, then all data is of type `string!`, and sorted accordingly. To sort by loaded values, choose Column->Sort->Loaded... or convert column to different type before sorting (see below). The only way to restore original order currently is to sort by column that holds original order (e.g. with options/auto-index set to `true`).
+
+**Filtering** is so far also possible by single column at time only. As with sorting, only non-frozen rows are considered. Select Column->Filter from local menu and enter selection criteria. There is special format for criteria. It may start with operator, e.g. `< 100` (provided data is of corresponding type - see type changing below), or with function name expecting data as its first argument, but without specifying this argument, e.g. `find charset [#"a" #"e" #"i" #"o" #"u"]`. Missing argument will be inserted automatically. Repeated filtering will consider already filtered rows only (but it is buggy :)). To remove filter choose Column->Unfilter from local menu.
+
+TBD:
+Copying/pasting
+
+Cell editing is activated with double-click or enter on cell, and committed with enter.
