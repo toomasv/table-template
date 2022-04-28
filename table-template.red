@@ -1077,7 +1077,7 @@ tbl: [
 									]
 								]
 							]
-							any-function? get/any w [
+							any-function? get/any w	[
 								crit: back insert next crit '_
 								forall row-index [
 									if not find frozen-rows row: first row-index [
@@ -1103,6 +1103,15 @@ tbl: [
 					]
 					paren! [
 						
+					]
+					set-word! [
+						crit: back insert next crit '_
+						forall row-index [
+							if not find frozen-rows row: first row-index [
+								change/only crit either all [auto col = 1] [row][data/:row/:c]
+								if do head crit [append filtered row]
+							]
+						]				
 					]
 				][  ;Simple list
 					either all [auto col = 1] [
