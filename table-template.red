@@ -1908,6 +1908,22 @@ tbl: [
 			save/header face/data out opts
 		]
 		
+		save-table: function [face [object!]][
+			file: face/data
+			switch/default suffix? file [
+				%.red [save-red-table face]
+				%.csv [write file to-csv data]
+			][write file data]
+		]
+		
+		save-table-as: func [face [object!] /local file][
+			if file: request-file/save/title "Save file as" [
+				face/data: file
+				face/text: form file
+				save-table face
+			]
+		]
+		
 		; STANDARD
 		
 		on-scroll: function [face [object!] event [event! none!]][

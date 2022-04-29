@@ -40,25 +40,22 @@ view/flags/options [  ;/no-wait
 				]
 				save [
 					either file? tb/data [
-						switch suffix? tb/data [
+						switch/default suffix? tb/data [
 							%.red [tb/actors/save-red-table tb]
 							%.csv [write tb/data to-csv tb/actors/data]
-						]
+						][write file tb/actors/data]
 					][
 						if file: request-file/save/title "Save file as" [
-							write file tb/actors/data
 							tb/data: file
 							face/text: form file
+							switch/default suffix? tb/data [
+								%.red [tb/actors/save-red-table tb]
+								%.csv [write tb/data to-csv tb/actors/data]
+							][write file tb/actors/data]
 						]
 					]
 				]
-				save-as [
-					if file: request-file/save/title "Save file as" [
-						write file tb/actors/data
-						tb/data: file
-						face/text: form file
-					]
-				]
+				save-as [save-table-as tb]
 			]
 		]
 	]
