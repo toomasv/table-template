@@ -1880,6 +1880,25 @@ tbl: [
 			opening: true
 		]
 		
+		open-table: func [face [object!] /local file opts][
+			if file: request-file/title "Open file" [
+				face/data: file 
+				data: load file
+				either all [
+					%.red = suffix? file 
+					data/1 = 'Red
+					block? opts: data/2 
+					opts/current
+				][
+					open-red-table face data
+				][
+					data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
+					init face
+				]
+				file
+			]
+		]
+		
 		get-table-state: func [face [object!]][
 			compose/only [
 				frozen-rows: (frozen-rows)
@@ -1919,9 +1938,9 @@ tbl: [
 		save-table-as: func [face [object!] /local file][
 			if file: request-file/save/title "Save file as" [
 				face/data: file
-				face/text: form file
 				save-table face
 			]
+			file
 		]
 		
 		; STANDARD

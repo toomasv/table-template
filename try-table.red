@@ -20,32 +20,15 @@ view/flags/options [  ;/no-wait
 		]
 		on-menu: function [face event][
 			switch event/picked [
-				open [
-					if file: request-file/title "Open file" [
-						tb/data: file 
-						data: load file
-						either all [
-							%.red = suffix? file 
-							data/1 = 'Red
-							block? opts: data/2 
-							opts/current
-						][
-							tb/actors/open-red-table tb data
-						][
-							tb/actors/data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
-							tb/actors/init tb 
-						]
-						face/text: form file
-					]
-				]
+				open [if file: tb/actors/open-table tb [face/text: form file]]
 				save [
 					either file? tb/data [
 						tb/actors/save-table tb
 					][
-						tb/actors/save-table-as tb
+						if file: tb/actors/save-table-as tb [face/text: form file]
 					]
 				]
-				save-as [tb/actors/save-table-as tb]
+				save-as [if file: tb/actors/save-table-as tb [face/text: form file]]
 			]
 		]
 	]
