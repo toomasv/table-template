@@ -21,6 +21,10 @@ tbl: [
 			"Unfreeze"       unfreeze-row
 			"Default height" default-height
 			"Hide"           hide-row
+			"Unhide"         unhide-row
+			"Remove"         remove-row
+			"Restore"        restore-row
+			"Delete"         delete-row
 			"Insert"         insert-row
 			"Append"         append-row
 			;"Edit"           edit-row
@@ -34,6 +38,7 @@ tbl: [
 				"Up"   sort-up 
 				"Down" sort-down
 			]
+			"Unsort"        unsort
 			"Filter ..."    filter
 			"Unfilter"      unfilter
 			"Freeze"        freeze-col
@@ -41,7 +46,10 @@ tbl: [
 			"Default width" default-width
 			"Full height"   full-height
 			"Hide"          hide-col
-			;"Show"
+			"Unhide"        unhide-col
+			"Remove"        remove-col
+			"Restore"       restore-col
+			"Delete"        delete-col
 			"Insert"        insert-col
 			"Append"        append-col
 			"Edit ..."      edit-column
@@ -58,16 +66,18 @@ tbl: [
 				"do"       do
 			]
 		]
-		"Selection" [
-			"Copy"      copy-selection
-			"Cut"       cut-selection
-			"Paste"     paste-selection
-			"Transpose" transpose
+		"Table" [
 			"Unhide"    [
 				"All"    unhide-all
 				"Row"    unhide-row
 				"Column" unhide-col
 			]
+		]
+		"Selection" [
+			"Copy"      copy-selection
+			"Cut"       cut-selection
+			"Paste"     paste-selection
+			"Transpose" transpose
 		]
 	]
 	actors: [
@@ -186,7 +196,7 @@ tbl: [
 		;]
 		
 		
-		set-default-height: function [face [object!] event [event! none!]][
+		set-default-height: function [face [object!] event [event!]][
 			dr: get-draw-row face event
 			r:  get-data-row dr
 			if sz: sizes/y/:r [
@@ -875,22 +885,27 @@ tbl: [
 			show-marks face
 		]
 		
-		unhide: function [face [object!] event [event! none!] dim [word!]][ ;TBD
-			either dim = 'all [
-				
-			][
-				
-				find/tail index/:dim
+		unhide: function [face [object!] dim [word!] /only][
+			foreach [key val] sizes/:dim [
+				if zero? val [remove/key sizes/:dim key]
+			]
+			unless only [
+				fill face
+				show-marks face
 			]
 		]
 		
-		show-row: function [face [object!] event [event! none!]][
-			
+		unhide-all: function [face [object!]][
+			foreach dim [x y][unhide/only face dim]
+			fill face
+			show-marks face
 		]
+		
+		show-row: function [face [object!] event [event! none!]][]
 		
 		show-col: function [face [object!] event [event! none!]][]
 		
-		insert-row: function [face [object!] event [event! none!]][
+		insert-row: function [face [object!] event [event!]][
 			dr: get-draw-row face event
 			r: get-index-row dr
 			row: make block! total/x
@@ -936,6 +951,76 @@ tbl: [
 			adjust-scroller face
 			fill face
 			show-marks face
+		]
+		
+		remove-row: function [face [object!] event [event!]][
+			dr: get-draw-row face event
+			r: get-index-row dr
+			remove at row-index r
+			set-last-page
+			adjust-scroller face
+			fill face
+			show-marks face
+		]
+		
+		remove-col: function [face [object!] event [event!]][
+			dc: get-draw-col face event
+			c: get-index-col dc
+			remove at col-index c
+			set-last-page
+			adjust-scroller face
+			fill face
+			show-marks face
+		]
+		
+		restore-row: function [face [object!]][
+			append clear row-index default-row-index
+			set-last-page
+			adjust-scroller face
+			fill face
+			show-marks face
+		]
+		
+		restore-col: function [face [object!]][
+			append clear col-index default-col-index
+			set-last-page
+			adjust-scroller face
+			fill face
+			show-marks face
+		]
+		
+		delete-row: function [face [object!] event [event!]][
+			dr: get-draw-row face event
+			ri: get-index-row dr
+			remove at data rd: row-index/:ri
+			remove at row-index ri
+			repeat i length? row-index [
+				if row-index/:i > rd [row-index/:i: row-index/:i - 1]
+			]
+			take/last default-row-index
+			set-last-page
+			adjust-scroller face
+			fill face
+			show-marks face
+		]
+		
+		delete-col: function [face [object!] event [event!]][
+			dc: get-draw-col face event
+			ci: get-index-col dc
+			cd: get-data-col dc
+			if face/options/auto-index [cd: cd - 1]
+			if cd > 0 [
+				foreach row data [either block? row [remove at row cd][break]]
+				remove at col-index ci
+				repeat i length? col-index [
+					if col-index/:i > cd [col-index/:i: col-index/:i - 1]
+				]
+				take/last default-col-index
+				set-last-page
+				adjust-scroller face
+				fill face
+				show-marks face
+			]
 		]
 
 		; MARKS
@@ -1022,19 +1107,19 @@ tbl: [
 			system/view/auto-sync?: off
 			clear marks
 			parse face/selected [any [
-			s: pair! '- pair! (
-				a: min s/1 s/3
-				b: max s/1 s/3
-				r1: mark-address a 'y
-				c1: mark-address a 'x
-				r2: mark-address b 'y
-				c2: mark-address b 'x
-				a: as-pair c1 r1
-				b: as-pair c2 r2
-				p1: mark-point face a
-				p2: mark-point/end face b
-				repend marks ['box p1 p2]
-			)
+				s: pair! '- pair! (
+					a: min s/1 s/3
+					b: max s/1 s/3
+					r1: mark-address a 'y
+					c1: mark-address a 'x
+					r2: mark-address b 'y
+					c2: mark-address b 'x
+					a: as-pair c1 r1
+					b: as-pair c2 r2
+					p1: mark-point face a
+					p2: mark-point/end face b
+					repend marks ['box p1 p2]
+				)
 			|  pair! (
 				if all [
 					r: mark-address s/1 'y
@@ -1483,6 +1568,12 @@ tbl: [
 			recycle/on
 		]
 		
+		unsort: func [face [object!]][
+			append clear row-index default-row-index
+			adjust-scroller face
+			fill face
+		]
+		
 		resize: func [face [object!]][
 			size: face/size - 17
 			adjust-size face
@@ -1644,6 +1735,7 @@ tbl: [
 				sort-down        [on-sort/down face event]
 				sort-loaded-up   [on-sort/loaded face event]
 				sort-loaded-down [on-sort/loaded/down face event]
+				unsort           [unsort face]
 				
 				filter [
 					if code: ask-code [
@@ -1673,12 +1765,21 @@ tbl: [
 				paste-selection [paste-selection face]
 				transpose       [paste-selection/transpose face]
 				
-				unhide-all      [unhide face event 'all]
-				unhide-row      [unhide face event 'y]
-				unhide-col      [unhide face event 'x]
+				unhide-all      [unhide-all  face]
+				unhide-row      [unhide face 'y]
+				unhide-col      [unhide face 'x]
 				
+				remove-row      [remove-row  face event]
+				restore-row     [restore-row face]
+				delete-row      [delete-row  face event]
+				
+				remove-col      [remove-col  face event]
+				restore-col     [restore-col face]
+				delete-col      [delete-col  face event]
+
 				draw            [draw-col face event]
 				do              [do-col   face event]
+				
 				integer! float! percent! string! block! 
 				date! time!     [set-col-type face event]
 			]
@@ -1717,7 +1818,7 @@ tbl: [
 		]
 		
 		do-over: function [face [object!] event [event! none!]][
-			if event/down? [
+			if all [event/down? not all [value? 'opening opening]][
 				either on-border? [
 					adjust-border face event 'x
 					adjust-border face event 'y
@@ -1742,6 +1843,7 @@ tbl: [
 					]
 				]
 			]
+			set 'opening false
 		]
 		
 		; STANDARD
