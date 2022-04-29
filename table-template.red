@@ -112,6 +112,8 @@ tbl: [
 		
 		index: make map! 2
 		col-types: make map! 5
+		
+		opening: false
 
 		; SETTING
 		
@@ -1597,7 +1599,7 @@ tbl: [
 				case [
 					; Active mark beyond edge
 					case/all [
-						a: all [active/y > (edge: current/y + grid/y)][
+						all [active/y > (edge: current/y + grid/y)][
 							ofs: active/y + step/y - edge
 							either ofs > 0 [
 								df: scroll face 'y ofs ;active/y - edge + step/y
@@ -1609,7 +1611,7 @@ tbl: [
 							y: 'done
 							false
 						]
-						b: all [active/x > (edge: current/x + grid/x)][
+						all [active/x > (edge: current/x + grid/x)][
 							ofs: active/x + step/x - edge
 							either ofs > 0 [
 								df: scroll face 'x ofs ;active/y - edge + step/y
@@ -1621,22 +1623,21 @@ tbl: [
 							x: 'done
 							false
 						]
-						c: all [active/y > top/y active/y <= current/y 'y <> 'done][
+						all [active/y > top/y active/y <= current/y 'y <> 'done][
+							;probe reduce ["anc" anchor "act" active "pos" pos "top" top "cur" current "fro" frozen "grd" grid "stp" step active/y - current/y - 1 + step/y]
 							scroll face 'y active/y - current/y - 1 + step/y
 							pos/y: frozen/y + 1
 							step/y: 0
 							y: 'done
 							false
 						]
-						d: all [active/x > top/x step/x <> 0 active/x <= current/x 'x <> 'done][
+						all [active/x > top/x step/x <> 0 active/x <= current/x 'x <> 'done][
 							scroll face 'x active/x - current/x - 1 + step/x
 							pos/x: frozen/x + 1
 							step/x: 0
 							x: 'done
 							false
 						]
-						;false []
-						;any [a b c d][false]
 					][false]
 					; Active mark on edge
 					dim: case [ 
@@ -1817,8 +1818,8 @@ tbl: [
 			show-marks face
 		]
 		
-		do-over: function [face [object!] event [event! none!]][
-			if all [event/down? not all [value? 'opening opening]][
+		do-over: function [face [object!] event [event! none!] /extern opening][
+			if all [event/down? not opening][
 				either on-border? [
 					adjust-border face event 'x
 					adjust-border face event 'y
@@ -1843,7 +1844,68 @@ tbl: [
 					]
 				]
 			]
-			set 'opening false
+			opening: false
+		]
+		
+		open-red-table: func [face [object!] fdata [block!] /local opts][
+			opts: fdata/2 
+			data: remove/part fdata 2
+			face/options/auto-index: 'true = opts/auto-index
+			frozen: as-pair length? opts/frozen-cols length? opts/frozen-rows
+			frozen-nums/x: face/actors/frozen-cols: opts/frozen-cols
+			frozen-nums/y: frozen-rows: opts/frozen-rows
+			total/y: index? find/last data block!
+			total/x: length? data/1
+			index/x: opts/col-index
+			index/y: opts/row-index
+			default-row-index: opts/default-row-index
+			default-col-index: opts/default-col-index
+			box: opts/box
+			sizes: opts/sizes
+			top: opts/top
+			current: opts/current
+			col-types: opts/col-types
+			face/selected: opts/selected
+			anchor: opts/anchor
+			active: opts/active
+			pos: active - current + frozen
+			scroller/x/position: opts/scroller-x
+			scroller/y/position: opts/scroller-y
+			
+			set-freeze-point face
+			adjust-scroller face
+			set-last-page
+			fill face
+			show-marks face
+			opening: true
+		]
+		
+		get-table-state: func [face [object!]][
+			compose/only [
+				frozen-rows: (frozen-rows)
+				frozen-cols: (frozen-cols)
+				top: (top)
+				current: (current)
+				sizes: (sizes)
+				box: (box)
+				row-index: (row-index)
+				col-index: (col-index)
+				default-row-index: (default-row-index)
+				default-col-index: (default-col-index)
+				auto-index: (face/options/auto-index)
+				col-types: (col-types)
+				selected: (face/selected)
+				anchor: (anchor)
+				active: (active)
+				scroller-x: (scroller/x/position)
+				scroller-y: (scroller/y/position)
+			]
+		]
+		
+		save-red-table: function [face [object!]][
+			out: new-line/all data true 
+			opts: get-table-state face
+			save/header face/data out opts
 		]
 		
 		; STANDARD
