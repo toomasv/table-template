@@ -144,13 +144,16 @@ tbl: [
 		set-grid: function [face [object!]][
 			foreach dim [x y][
 				cur: current/:dim
-				sz: 0
-				repeat i total/:dim - cur [
-					j: cur + i
-					sz: sz + get-size dim index/:dim/:j
-					if sz >= grid-size/:dim [
-						grid-offset/:dim: sz - grid-size/:dim 
-						break
+				;if dim = y probe reduce [total/y cur total/y - cur]
+				i: sz: 0
+				if 0 < steps: total/:dim - cur [
+					repeat i steps [
+						j: cur + i
+						sz: sz + get-size dim index/:dim/:j
+						if sz >= grid-size/:dim [
+							grid-offset/:dim: sz - grid-size/:dim 
+							break
+						]
 					]
 				]
 				grid/:dim: i
@@ -354,6 +357,7 @@ tbl: [
 
 		get-index-row: function [draw-row [integer!]][
 			either draw-row <= frozen/y [
+				;probe reduce [draw-row frozen/y frozen-rows row-index]
 				;probe reduce [frozen/y draw-row frozen-rows/:draw-row index? find row-index frozen-rows/:draw-row]
 				index? find row-index frozen-rows/:draw-row
 			][
@@ -648,26 +652,28 @@ tbl: [
 			while [all [py0 < size/y index-y < total/y]][
 				draw-y: draw-y + 1
 				frozen?: draw-y <= frozen/y
-				data-y: get-data-row draw-y
-				index-y: get-index-row draw-y
-				draw-row: face/draw/:draw-y
-				unless block? draw-row [
-					insert/only at face/draw draw-y draw-row: copy [] 
-					self/marks: next marks
-				]
-				sy: get-row-height data-y frozen?
-				py1: py0 + sy
-				
-				px0: 0
-				repeat draw-x frozen/x [
-					index-x: get-index-col draw-x
-					px0: set-cell face draw-row index-x data-y draw-y draw-x px0 py0 py1 true
-				]
-				draw-row: at draw-row frozen/x + 1
-				grid-y: draw-y - frozen/y
-				set-cells face draw-row data-y grid-y py0 py1 frozen?
-				grid/y: grid-y
-				py0: py1
+				;either 
+				data-y: get-data-row draw-y ;[
+					index-y: get-index-row draw-y
+					draw-row: face/draw/:draw-y
+					unless block? draw-row [
+						insert/only at face/draw draw-y draw-row: copy [] 
+						self/marks: next marks
+					]
+					sy: get-row-height data-y frozen?
+					py1: py0 + sy
+					
+					px0: 0
+					repeat draw-x frozen/x [
+						index-x: get-index-col draw-x
+						px0: set-cell face draw-row index-x data-y draw-y draw-x px0 py0 py1 true
+					]
+					draw-row: at draw-row frozen/x + 1
+					grid-y: draw-y - frozen/y
+					set-cells face draw-row data-y grid-y py0 py1 frozen?
+					grid/y: grid-y
+					py0: py1
+				;][size/y + 1]
 			]                                                                                                                                                     
 			while [all [block? draw-row: face/draw/(draw-y: draw-y + 1) draw-row/1/6/y < size/y]][
 				foreach cell draw-row [fix-cell-outside cell 'y]
@@ -1160,8 +1166,9 @@ tbl: [
 			repeat i length? bs [if bs/:i [append range i]]
 		]
 
-		filter: function [face [object!] col [integer!] crit [any-type!] /extern filtered][
-			append clear filtered frozen-rows ;include frozen rows in result first
+		filter: function [face [object!] col [integer!] crit [any-type!] /extern filtered row-index][
+			;append clear filtered frozen-rows ;include frozen rows in result first
+			row-index: skip row-index top/y
 			c: col
 			if auto: face/options/auto-index [c: c - 1];col-index/(col - 1)
 			either block? crit [
@@ -1171,20 +1178,24 @@ tbl: [
 						case [
 							op? get/any w [
 								forall row-index [
-									if not find frozen-rows row: first row-index [
+									;if not find frozen-rows 
+									row: first row-index 
+									;[
 										insert/only crit either all [auto col = 1] [row][data/:row/:c]
 										if do crit [append filtered row]
 										remove crit
-									]
+									;]
 								]
 							]
 							any-function? get/any w	[
 								crit: back insert next crit '_
 								forall row-index [
-									if not find frozen-rows row: first row-index [
+									;if not find frozen-rows 
+									row: first row-index 
+									;[
 										change/only crit either all [auto col = 1] [row][data/:row/:c]
 										if do head crit [append filtered row]
-									]
+									;]
 								]
 							]
 						]
@@ -1194,10 +1205,12 @@ tbl: [
 							any-function? get/any w/1 [
 								crit: back insert next crit '_
 								forall row-index [
-									if not find frozen-rows row: first row-index [
+									;if not find frozen-rows 
+									row: first row-index 
+									;[
 										change/only crit either all [auto col = 1] [row][data/:row/:c]
 										if do head crit [append filtered row]
-									]
+									;]
 								]
 							]
 						]
@@ -1208,10 +1221,12 @@ tbl: [
 					set-word! [
 						crit: back insert next crit '_
 						forall row-index [
-							if not find frozen-rows row: first row-index [
+							;if not find frozen-rows 
+							row: first row-index 
+							;[
 								change/only crit either all [auto col = 1] [row][data/:row/:c]
 								if do head crit [append filtered row]
-							]
+							;]
 						]				
 					]
 				][  ;Simple list
@@ -1221,9 +1236,11 @@ tbl: [
 					][
 						insert crit [_ =]
 						forall row-index [
-							if not find frozen-rows row: first row-index [
+							;if not find frozen-rows 
+							row: first row-index 
+							;[
 								if find crit data/:row/:c [append filtered row]
-							]
+							;]
 						]
 					]
 				]
@@ -1237,9 +1254,10 @@ tbl: [
 					]
 				]
 			]
-			append clear row-index filtered
-			set-last-page
+			row-index: head append clear row-index filtered
+			current/y: top/y
 			adjust-scroller face
+			set-last-page
 			unmark-active face
 			fill face
 		]
@@ -1364,10 +1382,10 @@ tbl: [
 		]
 
 		adjust-scroller: func [face [object!] /only][
-			unless only [set-grid face]
 			scroller/y/max-size:  max 1 total/y: length? row-index 
-			scroller/y/page-size: min grid/y scroller/y/max-size
 			scroller/x/max-size:  max 1 total/x: length? col-index 
+			unless only [set-grid face]
+			scroller/y/page-size: min grid/y scroller/y/max-size
 			scroller/x/page-size: min grid/x scroller/x/max-size
 		]
 
@@ -1892,7 +1910,7 @@ tbl: [
 				][
 					open-red-table face data
 				][
-					data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
+					;data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
 					init face
 				]
 				file
