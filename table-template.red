@@ -210,6 +210,7 @@ tbl: [
 					df: box/y - sz
 					freeze-point/y: freeze-point/y + df
 				]
+				set-grid face
 				fill face
 				show-marks face
 			]
@@ -1361,6 +1362,7 @@ tbl: [
 						]
 					]
 				]
+				set-grid face
 				;probe reduce ["adjust:" dim i sizes/:dim freeze-point/:dim]
 			]
 		]
@@ -1380,6 +1382,7 @@ tbl: [
 				dif: calc-step-size dim step
 				current/:dim: current/:dim + step
 				hide-editor
+				set-grid face
 				fill face
 			]
 			step
@@ -1405,16 +1408,15 @@ tbl: [
 		count-cells: function [face [object!] dim [word!] dir [integer!] /by-keys][
 			case [
 				dir > 0 [
-					start: current/:dim + grid/:dim 
-					if grid-offset/:dim > tolerance/:dim [start: start - 1]
+					start: current/:dim
 					gsize: 0 
 					repeat count total/:dim - start [
 						start: start + 1
 						bsize: get-size dim index/:dim/:start
 						gsize: gsize + bsize
-						if grid-size/:dim <= gsize [break]
+						if gsize >= grid-size/:dim [break]
 					]
-					if grid-offset/:dim > tolerance/:dim [count: count - 1]
+					if (gsize - grid-size/:dim) > tolerance/:dim [count: count - 1]
 				]
 				dir < 0 [
 					start: current/:dim
