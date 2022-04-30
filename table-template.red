@@ -113,7 +113,7 @@ tbl: [
 		index: make map! 2
 		col-types: make map! 5
 		
-		opening: false
+		no-over: false
 
 		; SETTING
 		
@@ -422,13 +422,13 @@ tbl: [
 
 		init-indices: func [face [object!] force [logic!] /local i][
 			;Prepare indexes
-			either all [indexes not force] [
+			;either all [indexes not force] [
 				;clear indexes
 				;clear default-row-index
 				;clear default-col-index
 				;clear frozen-rows
 				;clear frozen-cols
-			][
+			;][;probe face/data
 				indexes: make map! total/x                             ;Room for index for each column
 				filtered: 
 					copy row-index:                                    ;Active row-index
@@ -439,13 +439,15 @@ tbl: [
 				if face/options/auto-index [
 					indexes/1: copy default-row-index                  ;Default is for first (auto-index) column
 				]
+				;probe length? default-row-index
 				append clear row-index default-row-index               ;Set default as active index
 				repeat i total/x [append default-col-index i] 
 				append clear col-index default-col-index
 				index/x: col-index
 				index/y: row-index
-			]
-
+				;probe reduce ["1" total length? default-row-index length? row-index]
+			;]
+			;probe reduce ["2" total length? default-row-index length? row-index]
 			set-last-page
 			adjust-scroller face
 		]
@@ -489,9 +491,11 @@ tbl: [
 			face/selected: copy []
 			scroller/x/position: scroller/y/position: 1
 			if not empty? data [
+				;probe length? data
 				init-grid face
 				init-indices face force
 				init-fill face
+				;probe reduce [total length? default-row-index length? row-index]
 			]
 		]
 
@@ -1402,6 +1406,7 @@ tbl: [
 			case [
 				dir > 0 [
 					start: current/:dim + grid/:dim 
+					if grid-offset/:dim > tolerance/:dim [start: start - 1]
 					gsize: 0 
 					repeat count total/:dim - start [
 						start: start + 1
@@ -1409,6 +1414,7 @@ tbl: [
 						gsize: gsize + bsize
 						if grid-size/:dim <= gsize [break]
 					]
+					if grid-offset/:dim > tolerance/:dim [count: count - 1]
 				]
 				dir < 0 [
 					start: current/:dim
@@ -1836,8 +1842,8 @@ tbl: [
 			show-marks face
 		]
 		
-		do-over: function [face [object!] event [event! none!] /extern opening][
-			if all [event/down? not opening][
+		do-over: function [face [object!] event [event! none!] /extern no-over][
+			if all [event/down? not no-over][
 				either on-border? [
 					adjust-border face event 'x
 					adjust-border face event 'y
@@ -1862,7 +1868,7 @@ tbl: [
 					]
 				]
 			]
-			opening: false
+			no-over: false
 		]
 		
 		open-red-table: func [face [object!] fdata [block!] /local opts][
@@ -1895,7 +1901,7 @@ tbl: [
 			set-last-page
 			fill face
 			show-marks face
-			opening: true
+			no-over: true
 		]
 		
 		open-table: func [face [object!] /local file opts][
@@ -1915,6 +1921,7 @@ tbl: [
 				]
 				file
 			]
+			no-over: true
 		]
 		
 		get-table-state: func [face [object!]][
@@ -1951,6 +1958,7 @@ tbl: [
 				%.red [save-red-table face]
 				%.csv [write file to-csv data]
 			][write file data]
+			no-over: true
 		]
 		
 		save-table-as: func [face [object!] /local file][
