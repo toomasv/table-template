@@ -62,8 +62,9 @@ tbl: [
 				"date!"    date! 
 				"time!"    time!
 				"image!"   image!
-				"draw"     draw
-				"do"       do
+				"Load"     load
+				"Draw"     draw
+				"Do"       do
 			]
 		]
 		"Table" [
@@ -404,7 +405,12 @@ tbl: [
 
 		set-data: func [face [object!] spec [file! url! block! pair! none!] /local row][
 			switch type?/word spec [
-				file!  [data: load-csv read spec] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
+				file!  [
+					data: switch/default suffix? spec [
+						%.csv [load-csv read spec]
+						%.red [at load spec 3]
+					][load spec]
+				] ;load/as head clear tmp: find/last read/part file 5000 lf 'csv ;
 				url!   [data: either face/options/delimiter [
 					load-csv/with read-thru spec face/options/delimiter
 				][
@@ -800,12 +806,19 @@ tbl: [
 				col: get-col-number face event
 				if auto: face/options/auto-index [col: col - 1]
 				if not all [auto col = 0][
-					foreach row at data top/y + 1 [
+					;foreach row at data top/y + 1 [
+					;	change/only code row/:col
+					;	if res: attempt [do head code][
+					;		either series? res [
+					;			row/:col: head res
+					;		][row/:col: res]
+					;	]
+					;]
+					foreach i at row-index top/y + 1 [
+						row: data/(row-index/:i)
 						change/only code row/:col
 						if res: attempt [do head code][
-							either series? res [
-								row/:col: head res
-							][row/:col: res]
+							row/:col: either series? res [head res][res]
 						]
 					]
 					fill face
@@ -813,7 +826,7 @@ tbl: [
 			]
 		]
 		
-		set-col-type: function [face [object!] event [event! none!]][
+		set-col-type: function [face [object!] event [event!]][
 			col: get-col-number face event
 			if not all [auto: face/options/auto-index  col = 1][
 				if auto [col: col - 1]
@@ -846,6 +859,15 @@ tbl: [
 						forall data [if not find frozen-rows index? data [data/1/:col: to type data/1/:col]]
 					]
 				]
+			]
+		]
+		
+		load-col: function [face [object!] event [event! none!]][
+			col: get-col-number face event
+			if not all [auto: face/options/auto-index  col = 1][
+				if auto [col: col - 1]
+				col-types/:col: event/picked
+				forall data [if not find frozen-rows index? data [data/1/:col: load data/1/:col]]
 			]
 		]
 		
@@ -1814,6 +1836,7 @@ tbl: [
 				restore-col     [restore-col face]
 				delete-col      [delete-col  face event]
 
+				load            [load-col face event]
 				draw            [draw-col face event]
 				do              [do-col   face event]
 				
@@ -1892,6 +1915,7 @@ tbl: [
 			frozen-nums/y: frozen-rows: opts/frozen-rows
 			total/y: index? find/last data block!
 			total/x: length? data/1
+			if face/options/auto-index [total/y: total/y + 1]
 			index/x: col-index: opts/col-index
 			index/y: row-index: opts/row-index
 			box: opts/box
