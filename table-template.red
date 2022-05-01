@@ -423,32 +423,21 @@ tbl: [
 
 		init-indices: func [face [object!] force [logic!] /local i][
 			;Prepare indexes
-			;either all [indexes not force] [
-				;clear indexes
-				;clear default-row-index
-				;clear default-col-index
-				;clear frozen-rows
-				;clear frozen-cols
-			;][;probe face/data
-				indexes: make map! total/x                             ;Room for index for each column
-				filtered: 
-					copy row-index:                                    ;Active row-index
-					copy default-row-index: make block! total/y        ;Room for row numbers
-				col-index: copy default-col-index: make block! total/x ;Active col-index and room for col numbers
-			
-				repeat i total/y [append default-row-index i]          ;Default is just simple sequence in initial order
-				if face/options/auto-index [
-					indexes/1: copy default-row-index                  ;Default is for first (auto-index) column
-				]
-				;probe length? default-row-index
-				append clear row-index default-row-index               ;Set default as active index
-				repeat i total/x [append default-col-index i] 
-				append clear col-index default-col-index
-				index/x: col-index
-				index/y: row-index
-				;probe reduce ["1" total length? default-row-index length? row-index]
-			;]
-			;probe reduce ["2" total length? default-row-index length? row-index]
+			indexes: make map! total/x                             ;Room for index for each column
+			filtered: 
+				copy row-index:                                    ;Active row-index
+				copy default-row-index: make block! total/y        ;Room for row numbers
+			col-index: copy default-col-index: make block! total/x ;Active col-index and room for col numbers
+		
+			repeat i total/y [append default-row-index i]          ;Default is just simple sequence in initial order
+			if face/options/auto-index [
+				indexes/1: copy default-row-index                  ;Default is for first (auto-index) column
+			]
+			append clear row-index default-row-index               ;Set default as active index
+			repeat i total/x [append default-col-index i] 
+			append clear col-index default-col-index
+			index/x: col-index
+			index/y: row-index
 			set-last-page
 			adjust-scroller face
 		]
@@ -1873,7 +1862,7 @@ tbl: [
 			no-over: false
 		]
 		
-		open-red-table: func [face [object!] fdata [block!] /local opts][
+		open-red-table: func [face [object!] fdata [block!] /local opts i][
 			opts: fdata/2 
 			data: remove/part fdata 2
 			face/options/auto-index: 'true = opts/auto-index
@@ -1882,10 +1871,8 @@ tbl: [
 			frozen-nums/y: frozen-rows: opts/frozen-rows
 			total/y: index? find/last data block!
 			total/x: length? data/1
-			index/x: opts/col-index
-			index/y: opts/row-index
-			default-row-index: opts/default-row-index
-			default-col-index: opts/default-col-index
+			index/x: col-index: opts/col-index
+			index/y: row-index: opts/row-index
 			box: opts/box
 			sizes: opts/sizes
 			top: opts/top
@@ -1898,6 +1885,10 @@ tbl: [
 			scroller/x/position: opts/scroller-x
 			scroller/y/position: opts/scroller-y
 			
+			clear default-row-index
+			clear default-col-index
+			repeat i total/y [append default-row-index i]
+			repeat i total/x [append default-col-index i]
 			set-freeze-point face
 			adjust-scroller face
 			set-last-page
@@ -1915,15 +1906,10 @@ tbl: [
 					data/1 = 'Red
 					block? opts: data/2 
 					opts/current
-				][
-					open-red-table face data
-				][
-					;data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
-					init face
-				]
-				file
+				][open-red-table face data][init face];data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
 			]
 			no-over: true
+			file
 		]
 		
 		get-table-state: func [face [object!]][
@@ -1936,8 +1922,6 @@ tbl: [
 				box: (box)
 				row-index: (row-index)
 				col-index: (col-index)
-				default-row-index: (default-row-index)
-				default-col-index: (default-col-index)
 				auto-index: (face/options/auto-index)
 				col-types: (col-types)
 				selected: (face/selected)
