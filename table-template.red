@@ -72,6 +72,8 @@ tbl: [
 				"Row"    unhide-row
 				"Column" unhide-col
 			]
+			"Default height" remove-full-height
+			;"Default width"  set-table-default-width
 		]
 		"Selection" [
 			"Copy"      copy-selection
@@ -160,12 +162,11 @@ tbl: [
 			]
 		]
 		
-		set-freeze-point: func [face [object!] /local fro][
-			fro: frozen
-			if fro/y > 0 [fro/y: face/draw/(fro/y)/1/7/y]
-			if fro/x > 0 [fro/x: face/draw/1/(fro/x)/7/x]
-			grid-size: size - fro
-			freeze-point: fro
+		set-freeze-point: func [face [object!]][
+			freeze-point: 0x0
+			if frozen/y > 0 [freeze-point/y: face/draw/(frozen/y)/1/7/y]
+			if frozen/x > 0 [freeze-point/x: face/draw/1/(frozen/x)/7/x]
+			grid-size: size - freeze-point
 		]
 		
 		set-grid-offset: func [face [object!] /local end][
@@ -210,10 +211,18 @@ tbl: [
 					df: box/y - sz
 					freeze-point/y: freeze-point/y + df
 				]
-				set-grid face
 				fill face
+				set-grid face
 				show-marks face
 			]
+		]
+		
+		set-table-default-height: func [face [object!]][
+			full-height-col: none 
+			clear sizes/y
+			fill face
+			set-grid face
+			show-marks face
 		]
 		
 		set-default-width: function [face [object!] event [event! none!]][
@@ -226,15 +235,23 @@ tbl: [
 					freeze-point/x: freeze-point/x + df
 				]
 				fill face
+				set-grid face
 				show-marks face
 			]
 		]
 		
-		set-full-height: func [face [object!] event [event! none!]][
+		set-full-height: func [face [object!] event [event! none!] /local found][
 			full-height-col: get-col-number face event
 			fill face
+			set-grid face
 			adjust-scroller face
 			show-marks face
+			if found: find face/menu/"Column" "Full height" [change/part found ["Normal height" remove-full-height] 2]
+		]
+		
+		remove-full-height: func [face [object!] /local found][
+			set-table-default-height face
+			if found: find face/menu/"Column" "Normal height" [change/part found ["Full height" full-height] 2]
 		]
 		
 		; ACCESSING
@@ -481,11 +498,9 @@ tbl: [
 			face/selected: copy []
 			scroller/x/position: scroller/y/position: 1
 			if not empty? data [
-				;probe length? data
 				init-grid face
 				init-indices face force
 				init-fill face
-				;probe reduce [total length? default-row-index length? row-index]
 			]
 		]
 
@@ -503,7 +518,7 @@ tbl: [
 			][
 				d: data/:data-y/:full-height-col
 				n: 0 parse d [any [lf (n: n + 1) | skip]]
-				sizes/y/:data-y: n + 1 * 16 ;box/y
+				either n > 0 [sizes/y/:data-y: n + 1 * 16][get-size 'y data-y]
 			][
 				get-size 'y data-y
 			]
@@ -644,31 +659,31 @@ tbl: [
 			draw-y: 0
 			index-y: 0
 			while [all [py0 < size/y index-y < total/y]][
-				draw-y: draw-y + 1
-				frozen?: draw-y <= frozen/y
-				;either 
-				data-y: get-data-row draw-y ;[
-					index-y: get-index-row draw-y
-					draw-row: face/draw/:draw-y
-					unless block? draw-row [
-						insert/only at face/draw draw-y draw-row: copy [] 
-						self/marks: next marks
-					]
-					sy: get-row-height data-y frozen?
-					py1: py0 + sy
-					
-					px0: 0
-					repeat draw-x frozen/x [
-						index-x: get-index-col draw-x
-						px0: set-cell face draw-row index-x data-y draw-y draw-x px0 py0 py1 true
-					]
-					draw-row: at draw-row frozen/x + 1
-					grid-y: draw-y - frozen/y
-					set-cells face draw-row data-y grid-y py0 py1 frozen?
-					grid/y: grid-y
-					py0: py1
-				;][size/y + 1]
-			]                                                                                                                                                     
+				draw-y: draw-y + 1            ; Skim through draw rows; which number?
+				frozen?: draw-y <= frozen/y   ; Is it frozen?
+				data-y: get-data-row draw-y   ; Corresponding data row
+				index-y: get-index-row draw-y ; Corresponding index row
+				draw-row: face/draw/:draw-y   ; Actual draw-row
+				unless block? draw-row [      ; Add new row if missing
+					insert/only at face/draw draw-y draw-row: copy [] 
+					self/marks: next marks
+				]
+				sy: get-row-height data-y frozen? ;Row height is used in each cell
+				py1: py0 + sy                 ; Accumulative height
+				
+				px0: 0                        ; Start from rightmost cell
+				repeat draw-x frozen/x [      ; Render frozen cells first
+					index-x: get-index-col draw-x ; Which index is given draw column
+					px0: set-cell face draw-row index-x data-y draw-y draw-x px0 py0 py1 true 
+				]
+				
+				draw-row: at draw-row frozen/x + 1 ; Move index to unfrozen cells
+				grid-y: draw-y - frozen/y
+				set-cells face draw-row data-y grid-y py0 py1 frozen?
+				;grid/y: grid-y
+				py0: py1
+			]
+			; Move cells in unused rows outside of visible borders
 			while [all [block? draw-row: face/draw/(draw-y: draw-y + 1) draw-row/1/6/y < size/y]][
 				foreach cell draw-row [fix-cell-outside cell 'y]
 			]
@@ -783,10 +798,15 @@ tbl: [
 				code: load/all code 
 				code: back insert next code '_
 				col: get-col-number face event
-				if not all [face [object!]/options/auto-index col = 0][
+				if auto: face/options/auto-index [col: col - 1]
+				if not all [auto col = 0][
 					foreach row at data top/y + 1 [
 						change/only code row/:col
-						row/:col: head do head code
+						if res: attempt [do head code][
+							either series? res [
+								row/:col: head res
+							][row/:col: res]
+						]
 					]
 					fill face
 				]
@@ -1746,6 +1766,7 @@ tbl: [
 				default-height [set-default-height face event]
 				default-width  [set-default-width  face event]
 				full-height    [set-full-height    face event]
+				remove-full-height [remove-full-height face]
 				
 				sort-up          [on-sort face event]
 				sort-down        [on-sort/down face event]
