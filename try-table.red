@@ -1,8 +1,9 @@
 Red [Needs: 'View]
-tbl: #include %table-template.red
-style 'table tbl
+;tbl: #include %table-template.red
+;style 'table tbl
+style 'table #include %table-template.red
 
-file: %data/RV291_29062020120209394.csv  ;%data/annual-enterprise-survey-2020-financial-year-provisional-csv.csv ;
+file: %data/RV291_29062020120209394.csv  ;%data/annual-enterprise-survey.red ;
 view/flags/options [  ;/no-wait
 	below 
 	caption: h1 "Example Table" 
@@ -21,13 +22,7 @@ view/flags/options [  ;/no-wait
 		on-menu: function [face event][
 			switch event/picked [
 				open [if file: tb/actors/open-table tb [face/text: form file]]
-				save [
-					either file? tb/data [
-						tb/actors/save-table tb
-					][
-						if file: tb/actors/save-table-as tb [face/text: form file]
-					]
-				]
+				save [if file: tb/actors/save-table tb [face/text: form file]]
 				save-as [if file: tb/actors/save-table-as tb [face/text: form file]]
 			]
 		]
