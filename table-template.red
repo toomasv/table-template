@@ -80,6 +80,7 @@ tbl: [
 			"Open ..."    open-table
 			"Save"        save-table
 			"Save as ..." save-table-as
+			"Use state ..." use-state
 			"Save state as ..." save-state-as
 		]
 		"Selection" [
@@ -1856,6 +1857,7 @@ tbl: [
 				save-table    [save-table face]
 				save-table-as [save-table-as face]
 				save-state-as [save-state-as face]
+				use-state     [use-state face]
 				
 				edit-cell     [on-dbl-click face event]
 				freeze-cell   [freeze face event 'y freeze face event 'x]
@@ -1966,10 +1968,18 @@ tbl: [
 		
 		; OPEN
 		
-		open-red-table: func [face [object!] fdata [block!] /local opts i][
-			opts: fdata/2 
-			data: remove/part fdata 2
-			face/options/auto-index: 'true = opts/auto-index
+		open-red-table: func [face [object!] fdata [block!] /only /local opts i][
+			either only [
+				opts: fdata
+			][
+				opts: fdata/2 
+				data: remove/part fdata 2
+			]
+			either find face/options 'auto-index [
+				face/options/auto-index: 'true = opts/auto-index
+			][
+				append face/options compose [auto-index: ('true = opts/auto-index)]
+			]
 			
 			clear frozen-cols
 			if opts/frozen-cols [append frozen-cols opts/frozen-cols]
@@ -2018,6 +2028,13 @@ tbl: [
 			]
 			no-over: true
 			file
+		]
+		
+		use-state: func [face [object!]][
+			if file: request-file/title "Select state to use ..." [
+				state: load file
+				open-red-table/only face state
+			]
 		]
 		
 		; SAVE
