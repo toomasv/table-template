@@ -577,22 +577,22 @@ tbl: [
 			either index-x <= total/x [
 				data-x: col-index/:index-x
 				if auto: face/options/auto-index [data-x: data-x - 1]
-				case [
-					all [t: col-type/:data-x t = 'draw][; Check whether it is set AND whether it is specific
+				type: col-type/:data-x ; Check whether it is set
+				switch/default type [; AND whether it is specific
+					draw [ 
 						cell/11: compose/only [translate (cell/9) (data/:data-y/:data-x)]
 					]
-					all [t: col-type/:data-x t = 'do][
+					do [
 						cell/11/3: form either all [auto data-x = 0] [data-y][do data/:data-y/:data-x]
 						cell/11/2:  4x2  +  p0
 					]
-					all [t: col-type/:data-x t = 'logic!][
+					logic! [
 						cell/11/3: form either all [auto data-x = 0] [data-y][either data/:data-y/:data-x [true-char][false-char]];[#"^(2713)"][#"^(2717)"]]
 						cell/11/2:  4x2  +  p0
 					]
-					true [
-						cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
-						cell/11/2:  4x2  +  p0
-					]
+				][
+					cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
+					cell/11/2:  4x2  +  p0
 				]
 				cell/4:  get-color draw-y frozen?
 				cell/9:  (cell/6: p0) + 1
@@ -798,7 +798,7 @@ tbl: [
 		show-editor: function [face [object!] event [event! none!] cell [pair!]][
 			addr: get-data-address/with face event cell
 			ofs:  get-draw-offset face cell
-			either not all [face [object!]/options/auto-index addr/x = 0] [ ;Don't edit autokeys
+			either not all [face/options/auto-index addr/x = 0] [ ;Don't edit autokeys
 				tbl-editor/extra/table: face
 				txt: form data/(addr/y)/(addr/x);face/draw/(cell/y)/(cell/x)/11/3
 				tbl-editor/extra/data: addr                       ;Register cell
@@ -813,8 +813,9 @@ tbl: [
 			if all [tbl-editor tbl-editor/visible?] [tbl-editor/visible?: no]
 		]
 		
+		comment {
 		update-data: function [face [object!]][
-			switch type?/word e: face/extra/data [
+			switch type?/word e: face/extra/data [; This is address in editor
 				pair! [
 					if e/x > 0 [
 						if face/extra/table/options/auto-index [e/x: e/x + 1]
@@ -827,6 +828,31 @@ tbl: [
 				]
 			] 
 		]
+		}
+		;comment {
+		update-data: function [face [object!]][
+			switch type?/word e: face/extra/data [
+				pair! [
+					if e/x > 0 [
+						if face/extra/table/options/auto-index [e/x: e/x + 1]
+						type: type? data/(e/y)/(e/x)
+						data/(e/y)/(e/x): switch/default col-type/(e/x) [
+							logic!  [tx: get face/data]
+							draw do [tx: face/data]
+						][to type tx: face/text]
+						cell: face/extra/table/draw/(e/y)/(e/x)
+						switch col-type/(e/x) [
+							logic! [cell/11/3: [form either tx [true-char][false-char]]]
+							draw [
+								cell/11: compose/only [translate (cell/9) (data/(e/y)/(e/x))]
+							]
+							
+						][cell/11/3: tx]
+					]
+				]
+			] 
+		]
+		;}
 
 		edit: function [ofs [pair!] sz [pair!] txt [string!]][
 			win: tbl-editor
@@ -919,16 +945,11 @@ tbl: [
 		
 		draw-col: function [face [object!] event [event! none!]][
 			col: get-col-number face event
-			x:   get-draw-col face event
 			if not all [auto: face/options/auto-index  col = 1][
 				if auto [col: col - 1]
 				col-type/:col: 'draw
-				repeat y grid/y [
-					y: frozen/y + y
-					row: get-data-row y
-					cell: face/draw/:y/:x
-					cell/11: reduce ['translate cell/9 data/:row/:col]
-					;probe face/draw/:y
+				foreach y skip row-index top/y [
+					data/(row-index/:y)/:col: to block! data/(row-index/:y)/:col
 				]
 			]
 		]
@@ -1580,7 +1601,7 @@ tbl: [
 							d: as-pair col-index/(d/x) row-index/(d/y)
 							if face/options/auto-index [d/x: d/x - 1]
 							append/only selection-data out: 
-								either all [face [object!]/options/auto-index d/x = 0][
+								either all [face/options/auto-index d/x = 0][
 									d/y
 								][
 									data/(d/y)/(d/x)
@@ -1596,7 +1617,7 @@ tbl: [
 					col: col-index/(s/1/x)
 					if face/options/auto-index [col: col - 1]
 					append selection-data out: 
-						either all [face [object!]/options/auto-index col = 0][
+						either all [face/options/auto-index col = 0][
 							s/1/y
 						][
 							data/:row/:col
@@ -1661,33 +1682,31 @@ tbl: [
 
 		; More helpers
 
-		on-sort: func [face [object!] event [event! none!] /loaded /down /local col c fro idx found][
+		on-sort: func [face [object!] event [event! integer!] /loaded /down /local col c fro idx found][
 			recycle/off
-			col: get-col-number face event
-			if down [col: negate col]
-			either all [face [object!]/options/auto-index  1 = absolute col  indexes/:col][
-				;row-index: indexes/:col
-				append clear row-index default-row-index
+			col: switch type?/word event [
+				event!   [get-col-number face event]
+				integer! [col-index/:event]
+			]
+			either all [face/options/auto-index  1 = absolute col][
+				append clear head row-index default-row-index
+				if frozen/y > 0 [row-index: skip row-index frozen-rows/(frozen/y)]
 				if down [reverse row-index]
+				row-index: head row-index
 			][
 				either indexes/:col [clear indexes/:col][indexes/:col: make block! total/y]
-				;either indexes/:col [
-				;	append clear row-index indexes/:col
-				;][
-					;indexes/:col: make block! total/y
-					c: absolute col
-					if face/options/auto-index [c: c - 1]
-					idx: at row-index top/y + 1
-					sort/compare idx function [a b][;row-index
-						attempt [case [
-							all [loaded down][(load data/:a/:c) >  (load data/:b/:c)]
-							loaded           [(load data/:a/:c) <= (load data/:b/:c)]
-							down             [data/:a/:c >  data/:b/:c]
-							true             [data/:a/:c <= data/:b/:c]
-						]]
-					]
-					append indexes/:col row-index
-				;]
+				c: absolute col
+				if face/options/auto-index [c: c - 1]
+				idx: skip head row-index top/y
+				sort/compare idx function [a b][;row-index
+					attempt [case [
+						all [loaded down][(load data/:a/:c) >  (load data/:b/:c)]
+						loaded           [(load data/:a/:c) <= (load data/:b/:c)]
+						down             [data/:a/:c >  data/:b/:c]
+						true             [data/:a/:c <= data/:b/:c]
+					]]
+				]
+				append indexes/:col row-index
 			]
 			set-last-page
 			scroller/y/position: either 0 < fro: frozen/y [
@@ -2015,7 +2034,11 @@ tbl: [
 			no-over: true
 		]
 		
-		open-table: func [face [object!] /local file opts][
+		open-table: func [
+			face [object!] 
+			/with state [file! block!] ;TBD
+			/local file opts
+		][
 			if file: request-file/title "Open file" [
 				face/data: file 
 				data: load file
