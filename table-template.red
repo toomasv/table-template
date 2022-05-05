@@ -20,13 +20,23 @@ tbl: [
 			"Freeze"         freeze-row
 			"Unfreeze"       unfreeze-row
 			"Default height" default-height
-			"Hide"           hide-row
-			"Unhide"         unhide-row
-			"Remove"         remove-row
-			"Restore"        restore-row
-			"Delete"         delete-row
-			"Insert"         insert-row
-			"Append"         append-row
+			"Show" [
+				"Hide"       hide-row
+				"Unhide"     unhide-row
+				"Remove"     remove-row
+				"Restore"    restore-row
+				"Delete"     delete-row
+				"Insert"     insert-row
+				"Append"     append-row
+			]
+			"Move" [
+				"Top"        move-row-top
+				"Up"         move-row-up
+				"Down"       move-row-down
+				"Bottom"     move-row-bottom
+				"By ..."     move-row-by
+				"To ..."     move-row-to
+			]
 			;"Edit"           edit-row
 		] 
 		"Column" [
@@ -43,15 +53,25 @@ tbl: [
 			"Unfilter"      unfilter
 			"Freeze"        freeze-col
 			"Unfreeze"      unfreeze-col
-			"Default width" default-width
-			"Full height"   full-height
-			"Hide"          hide-col
-			"Unhide"        unhide-col
-			"Remove"        remove-col
-			"Restore"       restore-col
-			"Delete"        delete-col
-			"Insert"        insert-col
-			"Append"        append-col
+			"Show" [
+				"Default width" default-width
+				"Full height"   full-height
+				"Hide"          hide-col
+				"Unhide"        unhide-col
+				"Remove"        remove-col
+				"Restore"       restore-col
+				"Delete"        delete-col
+				"Insert"        insert-col
+				"Append"        append-col
+			]
+			"Move" [
+				"First"         move-col-first
+				"Left"          move-col-left
+				"Right"         move-col-right
+				"Last"          move-col-last
+				"By ..."        move-col-by
+				"To ..."        move-col-to
+			]
 			"Edit ..."      edit-column
 			"Type"   [
 				"integer!" integer! 
@@ -322,7 +342,7 @@ tbl: [
 		
 		get-draw-row: function [face [object!] event [event! none!]][
 			rows: face/draw 
-			row: total/y - current/y 
+			row: total/y - current/y + frozen/y
 			ofs: event/offset/y
 			repeat i row [
 				if rows/:i/1/7/y > ofs [row: i break]
@@ -851,6 +871,7 @@ tbl: [
 					]
 				]
 			] 
+			face/draw: face/draw
 		]
 		;}
 
@@ -1020,7 +1041,17 @@ tbl: [
 			dr: get-draw-row face event
 			r: get-index-row dr
 			row: make block! total/x
-			loop total/x [append row copy ""]
+			;loop total/x [append row copy ""]
+			repeat col total/x [
+				if face/options/auto-index [col: col + 1]
+				content: either type: col-type/:col [
+					switch/default type [
+						do draw [copy []] 
+						load [none]
+					][make reduce type 0]
+				][copy ""]
+				append/only row content
+			]
 			append/only data row
 			total/y: total/y + 1
 			insert/only at row-index r total/y
@@ -1032,7 +1063,16 @@ tbl: [
 
 		append-row: function [face [object!]][
 			row: make block! total/x
-			loop total/x [append row copy ""]
+			repeat col total/x [
+				if face/options/auto-index [col: col + 1]
+				content: either type: col-type/:col [
+					switch/default type [
+						do draw [copy []]
+						load [none]
+					][make reduce type 0]
+				][copy ""]
+				append/only row content
+			]
 			append/only data row
 			total/y: total/y + 1
 			append row-index total/y
@@ -1134,6 +1174,54 @@ tbl: [
 			]
 		]
 
+		move-row: function [face [object!] event [event!] step [word! integer!] /to][
+			dr: get-draw-row face event
+			ri: get-index-row dr
+			case [
+				to [
+					pos: max top/y + 1 min total/y step
+					step: pos - ri
+				]
+				integer? step [
+					step: max top/y - ri + 1 min total/y - ri step
+				]
+				word? step [
+					step: switch step [
+						up [-1]
+						down [1]
+						top [top/y - ri + 1]
+						bottom [total/y - ri]
+					]
+				]
+			]
+			move i: at row-index ri skip i step
+			fill face
+		]
+		
+		move-col: function [face [object!] event [event!] step [word! integer!] /to][
+			dc: get-draw-col face event
+			ci: get-index-col dc
+			case [
+				to [
+					pos: max top/x + 1 min total/x step
+					step: pos - ci
+				]
+				integer? step [
+					step: max top/x - ci + 1 min total/x - ci step
+				]
+				word? step [
+					step: switch step [
+						left  [-1]
+						right [1]
+						first [top/x - ci + 1]
+						last  [total/x - ci]
+					]
+				]
+			]
+			move i: at col-index ci skip i step
+			fill face
+		]
+		
 		; MARKS
 		
 		set-new-mark: func [face [object!] cell [pair!]][
@@ -1698,11 +1786,11 @@ tbl: [
 				c: absolute col
 				if face/options/auto-index [c: c - 1]
 				idx: skip head row-index top/y
-				sort/compare idx function [a b][;row-index
+				sort/compare idx function [a b][
 					attempt [case [
-						all [loaded down][(load data/:a/:c) >  (load data/:b/:c)]
+						all [loaded down][(load data/:b/:c) <= (load data/:a/:c)];[(load data/:a/:c) >  (load data/:b/:c)]
 						loaded           [(load data/:a/:c) <= (load data/:b/:c)]
-						down             [data/:a/:c >  data/:b/:c]
+						down             [data/:b/:c <=  data/:a/:c];[data/:a/:c >  data/:b/:c]
 						true             [data/:a/:c <= data/:b/:c]
 					]]
 				]
@@ -1919,7 +2007,21 @@ tbl: [
 				insert-col  [insert-col face event]
 				append-col  [append-col face]
 				
-				edit-column [edit-column face event]
+				move-row-top    [move-row face event 'top]
+				move-row-up     [move-row face event 'up]
+				move-row-down   [move-row face event 'down]
+				move-row-bottom [move-row face event 'bottom]
+				move-row-by     [if integer? step: load ask-code [move-row face event step]]
+				move-row-to     [if integer? pos:  load ask-code [move-row/to face event pos]]
+				
+				move-col-first  [move-col face event 'first]
+				move-col-left   [move-col face event 'left]
+				move-col-right  [move-col face event 'right]
+				move-col-last   [move-col face event 'last]
+				move-col-by     [if integer? step: load ask-code [move-col face event step]]
+				move-col-to     [if integer? pos:  load ask-code [move-col/to face event pos]]
+
+				edit-column     [edit-column face event]
 				
 				copy-selection  [copy-selection face]
 				cut-selection   [copy-selection/cut face]
