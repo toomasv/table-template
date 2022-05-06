@@ -87,6 +87,7 @@ tbl: [
 				"Load"     load
 				"Draw"     draw
 				"Do"       do
+				"Icon"     icon
 			]
 		]
 		"Table" [
@@ -569,6 +570,13 @@ tbl: [
 			]
 		]
 
+		get-icon: function [lib name /type typ][
+			base: https://raw.githubusercontent.com/google/material-design-icons/master/png/
+			mi-lib: ""
+			either typ [mi-lib: copy typ if typ = "outline" [append mi-lib "d"]][typ: "baseline"]
+			load to-url rejoin [base lib "/" name "/materialicons" mi-lib "/24dp/1x/" typ "_" name "_black_24dp.png"]
+		] 
+
 		fill-cell: function [
 			face [object!] 
 			cell [block!] 
@@ -605,6 +613,21 @@ tbl: [
 								cell/11/3: cell/9
 							]
 						]
+					]
+					icon [
+						either all [
+							1 < length? ico-data: split data/:data-y/:data-x #"/"
+							image? ico: get-icon/type ico-data/1 ico-data/2 ico-data/3
+						][
+							cell/11/1: 'image
+							cell/11/2: ico
+							cell/11/3: cell/9
+						][
+							cell/11/1: 'text
+							cell/11/2: cell/9
+							cell/11/3: copy ""
+						]
+						;ico: ico-data: none
 					]
 				][
 					cell/11/1: 'text
@@ -851,9 +874,10 @@ tbl: [
 						type: type? data/(addr/y)/(addr/x)
 						if face/extra/table/options/auto-index [addr2/x: addr/x + 1]
 						data/(addr/y)/(addr/x): switch/default col-type/(addr2/x) [
-							logic!  [tx: get face/data]
+							logic!      [tx: get face/data]
 							draw image! [tx: face/data]
-							do [tx: to-block face/text]
+							do          [tx: to-block face/text]
+							icon        [tx: face/text]
 						][to type tx: face/text]
 						
 						cell:  face/extra/cell
@@ -863,6 +887,15 @@ tbl: [
 							draw   [draw-cell/11:   compose/only [translate (draw-cell/9) (tx)]]
 							image! [if attempt [image? img: load tx] [draw-cell/11: compose [image (img) (draw-cell/9)]]]
 							do     [draw-cell/11/3: form do tx]
+							icon   [
+								if all [
+									1 < length? i: split data/(addr/y)/(addr/x) #"/"
+									image? ico: get-icon/type i/1 i/2 i/3 
+								][
+									draw-cell/11: compose [image (ico) (draw-cell/9)]
+								]
+								;ico: i: none
+							]
 						][draw-cell/11/3: tx]
 						face/draw: face/draw
 					]
@@ -924,6 +957,7 @@ tbl: [
 										'else [data/1/:col: true]                       ; Should it be false instead?
 									]
 								]
+								icon [form data/1/:col]
 							][
 								to reduce type data/1/:col
 							]
@@ -1025,8 +1059,9 @@ tbl: [
 				if face/options/auto-index [col: col + 1]
 				content: either type: col-type/:col [
 					switch/default type [
-						do draw [copy []] 
+						do draw image! [copy []] 
 						load [none]
+						icon [copy ""]
 					][make reduce type 0]
 				][copy ""]
 				append/only row content
@@ -1046,8 +1081,9 @@ tbl: [
 				if face/options/auto-index [col: col + 1]
 				content: either type: col-type/:col [
 					switch/default type [
-						do draw [copy []]
+						do draw image! [copy []]
 						load [none]
+						icon [copy ""]
 					][make reduce type 0]
 				][copy ""]
 				append/only row content
@@ -2030,10 +2066,11 @@ tbl: [
 				restore-col     [restore-col face]
 				delete-col      [delete-col  face event]
 
-				load            [load-col  face event]
-				draw            [draw-col  face event]
-				do              [do-col    face event]
+				;load            [load-col  face event]
+				;draw            [draw-col  face event]
+				;do              [do-col    face event]
 				
+				load draw do icon 
 				integer! float! percent! 
 				string! char! block! 
 				date! time! logic! 
