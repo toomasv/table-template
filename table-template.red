@@ -238,19 +238,6 @@ tbl: [
 				last-page/:dim: j
 			]
 		]
-		;foreach dim [x y][;!!!!!!!!!!!!!!!!!!!!!!!!
-		;	t: tb/total/:dim
-		;	j: sz: 0
-		;	while [
-		;		all [
-		;			r: index/:dim/(t - j)
-		;			sz: sz + s: get-size face dim r
-		;			sz <= tb/grid-size/:dim
-		;		]
-		;	][j: j + 1]
-		;	tb/last-page/:dim: j
-		;]
-		
 		
 		set-default-height: function [face [object!] event [event!]][
 			dr: get-draw-row face event
@@ -360,8 +347,8 @@ tbl: [
 			get-data-row row
 		]
 
-		get-data-address: function [face [object!] event [event! none!] /with cell][
-			if not cell [cell: get-draw-address face event]
+		get-data-address: function [face [object!] event [event! pair!]][
+			cell: either event? event [cell: get-draw-address face event][event]
 			out: get-logic-address cell
 			if face/options/auto-index [out/x: out/x - 1]
 			out
@@ -409,8 +396,6 @@ tbl: [
 
 		get-index-row: function [draw-row [integer!]][
 			either draw-row <= frozen/y [
-				;probe reduce [draw-row frozen/y frozen-rows row-index]
-				;probe reduce [frozen/y draw-row frozen-rows/:draw-row index? find row-index frozen-rows/:draw-row]
 				index? find row-index frozen-rows/:draw-row
 			][
 				draw-row - frozen/y + current/y
@@ -597,26 +582,42 @@ tbl: [
 			either index-x <= total/x [
 				data-x: col-index/:index-x
 				if auto: face/options/auto-index [data-x: data-x - 1]
-				type: col-type/:data-x ; Check whether it is set
-				switch/default type [; AND whether it is specific
-					draw [ 
-						cell/11: compose/only [translate (cell/9) (data/:data-y/:data-x)]
-					]
-					do [
-						cell/11/3: form either all [auto data-x = 0] [data-y][do data/:data-y/:data-x]
-						cell/11/2:  4x2  +  p0
-					]
-					logic! [
-						cell/11/3: form either all [auto data-x = 0] [data-y][either data/:data-y/:data-x [true-char][false-char]];[#"^(2713)"][#"^(2717)"]]
-						cell/11/2:  4x2  +  p0
-					]
-				][
-					cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
-					cell/11/2:  4x2  +  p0
-				]
 				cell/4:  get-color draw-y frozen?
 				cell/9:  (cell/6: p0) + 1
 				cell/10: (cell/7: p1) - 1 
+				type: col-type/:data-x ; Check whether it is set
+				switch/default type [; AND whether it is specific
+					draw [ 
+						cell/11/1: 'translate
+						cell/11/2: cell/9
+						cell/11/3: copy/deep data/:data-y/:data-x
+					]
+					image! [
+						switch type?/word data/:data-y/:data-x [
+							word! image! [
+								cell/11/1: 'image
+								cell/11/2: data/:data-y/:data-x
+								cell/11/3: cell/9
+							]
+							file! url! [
+								cell/11/1: 'image
+								cell/11/2: load data/:data-y/:data-x
+								cell/11/3: cell/9
+							]
+						]
+					]
+				][
+					cell/11/1: 'text
+					cell/11/2:  4x2  +  p0
+					cell/11/3: form either all [auto data-x = 0] [data-y][
+						switch/default type [
+							do [do data/:data-y/:data-x]
+							logic! [either data/:data-y/:data-x [true-char][false-char]]
+						][
+							data/:data-y/:data-x
+						]
+					]
+				]
 			][
 				fix-cell-outside cell 'x 
 			]
@@ -785,13 +786,13 @@ tbl: [
 							append clear face/text face/options/text
 							face/visible?: no
 						]
-						down  [show-editor face/extra/table none face/extra/draw + 0x1]
-						up    [show-editor face/extra/table none face/extra/draw - 0x1]
+						down  [show-editor face/extra/table face/extra/cell + 0x1]
+						up    [show-editor face/extra/table face/extra/cell - 0x1]
 						#"^-" [
 							either find event/flags 'shift [
-								show-editor face/extra/table none face/extra/draw - 1x0
+								show-editor face/extra/table face/extra/cell - 1x0
 							][
-								show-editor face/extra/table none face/extra/draw + 1x0
+								show-editor face/extra/table face/extra/cell + 1x0
 							]
 						]
 					]
@@ -810,20 +811,30 @@ tbl: [
 			][
 				make-editor face
 			]
-			;tbl-editor/extra/table: face
 			cell: get-draw-address face event                     ;Draw-cell address
-			show-editor face event cell
+			show-editor face cell
 		]
 		
-		show-editor: function [face [object!] event [event! none!] cell [pair!]][
-			addr: get-data-address/with face event cell
+		show-editor: function [face [object!] cell [pair!]][
+			addr: get-data-address face cell
+			col: addr/x
 			ofs:  get-draw-offset face cell
-			either not all [face/options/auto-index addr/x = 0] [ ;Don't edit autokeys
-				tbl-editor/extra/table: face
-				txt: form data/(addr/y)/(addr/x);face/draw/(cell/y)/(cell/x)/11/3
-				tbl-editor/extra/data: addr                       ;Register cell
-				tbl-editor/extra/draw: cell
-				;sz: as-pair sizes/x/(cell/x) box/y
+			either not all [auto: face/options/auto-index col = 0] [ ;Don't edit autokeys
+				if auto [col: col + 1]
+				tbl-editor/extra/table: face                      ;Reference to table itself
+				txt: switch/default col-type/:col [
+					image! [
+						either block? data/(addr/y)/(addr/x) [
+							form data/(addr/y)/(addr/x)
+						][
+							mold data/(addr/y)/(addr/x)
+						]
+					]
+				][
+					form data/(addr/y)/(addr/x)
+				]
+				tbl-editor/extra/addr: addr                       ;Register data address
+				tbl-editor/extra/cell: cell                       ;Register draw-cell address
 				fof: face/offset                                  ;Compensate offset for VID space
 				edit fof + ofs/1 ofs/2 - ofs/1 txt
 			][tbl-editor/visible?: no]
@@ -833,47 +844,31 @@ tbl: [
 			if all [tbl-editor tbl-editor/visible?] [tbl-editor/visible?: no]
 		]
 		
-		comment {
 		update-data: function [face [object!]][
-			switch type?/word e: face/extra/data [; This is address in editor
+			switch type?/word addr2: addr: face/extra/addr [
 				pair! [
-					if e/x > 0 [
-						if face/extra/table/options/auto-index [e/x: e/x + 1]
-						type: type? data/(e/y)/(e/x)
-						data/(e/y)/(e/x): either 'logic! = col-type/(e/x) [tx: get face/data][to type tx: face/text]
-						face/extra/table/draw/(e/y)/(e/x)/11/3: either logic? tx [
-							form either tx [true-char][false-char]
-						][tx]
-					]
-				]
-			] 
-		]
-		}
-		;comment {
-		update-data: function [face [object!]][
-			switch type?/word e: face/extra/data [
-				pair! [
-					if e/x > 0 [
-						if face/extra/table/options/auto-index [e/x: e/x + 1]
-						type: type? data/(e/y)/(e/x)
-						data/(e/y)/(e/x): switch/default col-type/(e/x) [
+					if addr/x > 0 [ ; Don't update auto-index
+						type: type? data/(addr/y)/(addr/x)
+						if face/extra/table/options/auto-index [addr2/x: addr/x + 1]
+						data/(addr/y)/(addr/x): switch/default col-type/(addr2/x) [
 							logic!  [tx: get face/data]
-							draw do [tx: face/data]
+							draw image! [tx: face/data]
+							do [tx: to-block face/text]
 						][to type tx: face/text]
-						cell: face/extra/table/draw/(e/y)/(e/x)
-						switch col-type/(e/x) [
-							logic! [cell/11/3: [form either tx [true-char][false-char]]]
-							draw [
-								cell/11: compose/only [translate (cell/9) (data/(e/y)/(e/x))]
-							]
-							
-						][cell/11/3: tx]
+						
+						cell:  face/extra/cell
+						draw-cell: face/extra/table/draw/(cell/y)/(cell/x)
+						switch/default col-type/(addr2/x) [
+							logic! [draw-cell/11/3: form either tx [true-char][false-char]]
+							draw   [draw-cell/11:   compose/only [translate (draw-cell/9) (tx)]]
+							image! [if attempt [image? img: load tx] [draw-cell/11: compose [image (img) (draw-cell/9)]]]
+							do     [draw-cell/11/3: form do tx]
+						][draw-cell/11/3: tx]
+						face/draw: face/draw
 					]
 				]
 			] 
-			face/draw: face/draw
 		]
-		;}
 
 		edit: function [ofs [pair!] sz [pair!] txt [string!]][
 			win: tbl-editor
@@ -903,58 +898,42 @@ tbl: [
 				]
 			]
 		]
-		
-		set-col-type: function [face [object!] event [event!]][
-			col: get-col-number face event
-			if not all [auto: face/options/auto-index  col = 1][
-				if auto [col: col - 1]
-				type: reduce event/picked
-				case [
-					all [col-type/:col = 'draw event/picked <> 'draw][
-						col-type/:col: event/picked
-						col: get-draw-col face event
-						system/view/auto-sync?: off
-						foreach row face/draw [
-							either block? row [
-								if 'translate = first row/:col/11 [
-									cell: row/:col/11
-									cell/1: 'text 
-									cell/2: cell/2 + 3x1
-									cell/3:	form cell/3
-								] 
-							][break]
-						]
-						show face
-						system/view/auto-sync?: on
-						face/draw: face/draw
-					]
-					event/picked = 'string! [
-						col-type/:col: event/picked
-						forall data [if not find frozen-rows index? data [data/1/:col: mold data/1/:col]]
-					]
-					event/picked = 'logic! [
-						col-type/:col: event/picked
-						forall data [if not find frozen-rows index? data [
-							case [
-								all [series? data/1/:col empty? data/1/:col][data/1/:col: false]
-								logic? data/1/col []
-								any [
-									all [string? data/1/:col val: get/any to-word data/1/:col]
-								][data/1/:col: either logic? val [val][false]]
-								'else [data/1/:col: true]
+
+		set-col-type: function [face [object!] event [event! integer!] /only typ [word!]][
+			col: either event? event [get-col-number face event][event]
+			if not all [not only auto: face/options/auto-index  col = 1][
+				if all [auto not only] [col: col - 1]
+				old-type: col-type/:col
+				col-type/:col: type: either event? event [event/picked][typ]
+				forall data [
+					either block? data/1 [
+						if not find frozen-rows index? data [
+							data/1/:col: switch/default type [
+								draw do     [to block! data/1/:col]
+								load image! [load data/1/:col]
+								string!     [mold data/1/:col]
+								logic! [
+									case [
+										all [series? data/1/:col empty? data/1/:col][
+											data/1/:col: false                          ; Empty series -> false
+										]
+										logic? data/1/col []                            ; It's logic! already, do nothing
+										all [string? data/1/:col  val: get/any to-word data/1/:col][
+											data/1/:col: either logic? val [val][false] ; Textual logic values get mapped
+										]
+										'else [data/1/:col: true]                       ; Should it be false instead?
+									]
+								]
+							][
+								to reduce type data/1/:col
 							]
-						]]
-					]
-					event/picked = 'image! []
-					true [
-						col-type/:col: event/picked
-						forall data [if not find frozen-rows index? data [data/1/:col: to type data/1/:col]]
-					]
+						]
+					][break]
 				]
 			]
 			fill face
 		]
-		
+
 		load-col: function [face [object!] event [event! none!]][
 			col: get-col-number face event
 			if not all [auto: face/options/auto-index  col = 1][
@@ -1174,9 +1153,13 @@ tbl: [
 			]
 		]
 
-		move-row: function [face [object!] event [event!] step [word! integer!] /to][
-			dr: get-draw-row face event
-			ri: get-index-row dr
+		move-row: function [face [object!] event [event! integer!] step [word! integer!] /to][
+			either event? event [
+				dr: get-draw-row face event
+				ri: get-index-row dr
+			][
+				ri: event
+			]
 			case [
 				to [
 					pos: max top/y + 1 min total/y step
@@ -1196,11 +1179,16 @@ tbl: [
 			]
 			move i: at row-index ri skip i step
 			fill face
+			show-marks face
 		]
 		
-		move-col: function [face [object!] event [event!] step [word! integer!] /to][
-			dc: get-draw-col face event
-			ci: get-index-col dc
+		move-col: function [face [object!] event [event! integer!] step [word! integer!] /to][
+			either event? event [
+				dc: get-draw-col face event
+				ci: get-index-col dc
+			][
+				ci: event
+			]
 			case [
 				to [
 					pos: max top/x + 1 min total/x step
@@ -1220,6 +1208,7 @@ tbl: [
 			]
 			move i: at col-index ci skip i step
 			fill face
+			show-marks face
 		]
 		
 		; MARKS
@@ -1952,7 +1941,7 @@ tbl: [
 				switch key [
 					#"^M" [
 						unless tbl-editor [make-editor face]
-						show-editor face none pos
+						show-editor face pos
 					]
 				]
 			]
@@ -1965,6 +1954,7 @@ tbl: [
 				save-table-as [save-table-as face]
 				save-state-as [save-state-as face]
 				use-state     [use-state face]
+				force-state   [use-state/force face]
 				
 				edit-cell     [on-dbl-click face event]
 				freeze-cell   [freeze face event 'y freeze face event 'x]
@@ -2089,7 +2079,7 @@ tbl: [
 		
 		; OPEN
 		
-		open-red-table: func [face [object!] fdata [block!] /only /local opts i][
+		open-red-table: func [face [object!] fdata [block!] /only /local opts i col type][
 			either only [
 				opts: fdata
 			][
@@ -2114,7 +2104,14 @@ tbl: [
 			if opts/col-index [append col-index opts/col-index]
 			if opts/row-index [append row-index opts/row-index]
 			if opts/sizes     [sizes: opts/sizes]
-			if opts/col-type  [col-type: opts/col-type]
+			if opts/col-type  [
+				col-type: opts/col-type
+				if only [
+					foreach [col type] body-of col-type [
+						set-col-type/only face col type
+					]
+				]
+			]
 			
 			box:           any [opts/box default-box]
 			top:           any [opts/top      0x0]
@@ -2155,7 +2152,7 @@ tbl: [
 			file
 		]
 		
-		use-state: func [face [object!]][
+		use-state: function [face [object!] /force][
 			if file: request-file/title "Select state to use ..." [
 				state: load file
 				open-red-table/only face state
