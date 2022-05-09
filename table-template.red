@@ -455,12 +455,12 @@ tbl: [
 			if face/options/auto-columns [total/y: total/y + 1]
 			grid-size: size: face/size - 17
 			;set-grid face
-			unless only [
+			;unless only [
 				clear sizes/x
 				clear sizes/y
 				clear frozen-rows
 				clear frozen-cols
-			]
+			;]
 		]
 
 		init-indices: func [face [object!] /only /local i][
@@ -539,7 +539,7 @@ tbl: [
 		]
 
 		init: func [face [object!]][
-			frozen: current: 0x0
+			frozen: top: current: 0x0
 			face/selected: copy []
 			scroller/x/position: scroller/y/position: 1
 			if not empty? data [
@@ -1990,7 +1990,7 @@ tbl: [
 				save-table-as [save-table-as face]
 				save-state-as [save-state-as face]
 				use-state     [use-state face]
-				force-state   [use-state/force face]
+				;force-state   [use-state/force face]
 				
 				edit-cell     [on-dbl-click face event]
 				freeze-cell   [freeze face event 'y freeze face event 'x]
@@ -2116,7 +2116,7 @@ tbl: [
 		
 		; OPEN
 		
-		open-red-table: func [face [object!] fdata [block!] /only /local opts i col type][
+		open-red-table: func [face [object!] fdata [block!] /only /local opts i col type sz][
 			either only [
 				opts: fdata
 			][
@@ -2129,18 +2129,18 @@ tbl: [
 				append face/options compose [auto-index: ('true = opts/auto-index)]
 			]
 			
-			clear frozen-cols
-			if opts/frozen-cols [append frozen-cols opts/frozen-cols]
-			clear frozen-rows
-			if opts/frozen-rows [append frozen-rows opts/frozen-rows]
-			frozen: as-pair length? opts/frozen-cols length? opts/frozen-rows
-			
-			init-grid/only face
+			init-grid face ;/only
 			init-indices/only face
 			
-			if opts/col-index [append col-index opts/col-index]
-			if opts/row-index [append row-index opts/row-index]
-			if opts/sizes     [sizes: opts/sizes]
+			if opts/frozen-cols [append frozen-cols opts/frozen-cols]
+			if opts/frozen-rows [append frozen-rows opts/frozen-rows]
+			frozen: as-pair length? frozen-cols length? frozen-rows
+			append col-index either opts/col-index [opts/col-index][default-col-index]
+			append row-index either opts/row-index [opts/row-index][default-row-index]
+			if sz: opts/sizes [
+				if sz/x [sizes/x: to-map sz/x]
+				if sz/y [sizes/y: to-map sz/y]
+			]
 			if opts/col-type  [
 				col-type: opts/col-type
 				if only [
@@ -2151,13 +2151,19 @@ tbl: [
 			]
 			
 			box:           any [opts/box default-box]
-			top:           any [opts/top      0x0]
-			current:       any [opts/current  0x0]
-			face/selected: any [opts/selected 1x1]
+			top:           case/all [
+				(x: frozen/x) > 0 [x: frozen-cols/:x] 
+				(y: frozen/y) > 0 [y: frozen-rows/:y] 
+				true [as-pair x y]
+			]
+			current:       any [opts/current  top]
+			face/selected: any [opts/selected [1x1]]
 			anchor:        any [opts/anchor   1x1]
 			active:        any [opts/active   1x1]
 			
 			pos: active - current + frozen
+			
+			;probe reduce [frozen frozen-rows frozen-cols top current face/selected anchor active pos]
 			
 			scroller/x/position: current/x + 1 ;opts/scroller-x
 			scroller/y/position: current/y + 1 ;opts/scroller-y
@@ -2165,6 +2171,10 @@ tbl: [
 			set-freeze-point2 face
 			adjust-scroller face
 			set-last-page
+			
+			face/draw: copy []
+			marks: insert tail face/draw [line-width 2.5 fill-pen 0.0.0.220]
+			
 			either face/draw [fill face][init-fill/only face]
 			show-marks face
 			no-over: true
@@ -2189,7 +2199,7 @@ tbl: [
 			file
 		]
 		
-		use-state: function [face [object!] /force][
+		use-state: function [face [object!]][
 			if file: request-file/title "Select state to use ..." [
 				state: load file
 				open-red-table/only face state
@@ -2313,7 +2323,7 @@ tbl: [
 		
 		on-key-down: func [face [object!] event [event! none!]][hot-keys face event]
 		
-		on-created: func [face [object!] event [event! none!] /local file][
+		on-created: func [face [object!] event [event! none!] /local file conf][
 			make-scroller face
 			either all [
 				file? file: face/data 
@@ -2326,7 +2336,12 @@ tbl: [
 				open-red-table face data
 			][
 				set-data face face/data
-				init face
+				either conf: face/options/conf [
+					if file? conf [conf: load conf]
+					open-red-table/only face conf
+				][
+					init face
+				]
 			]
 		]
 		
