@@ -563,7 +563,7 @@ tbl: [
 			][
 				d: data/:data-y/:full-height-col
 				n: 0 parse d [any [lf (n: n + 1) | skip]]
-				probe reduce [sizes n data-y]
+				;probe reduce [sizes n data-y]
 				either n > 0 [sizes/y/:data-y: n + 1 * 16][get-size 'y data-y]
 			][
 				get-size 'y data-y
@@ -2323,7 +2323,7 @@ tbl: [
 		
 		on-key-down: func [face [object!] event [event! none!]][hot-keys face event]
 		
-		on-created: func [face [object!] event [event! none!] /local file conf][
+		on-created: func [face [object!] event [event! none!] /local file setup][
 			make-scroller face
 			either all [
 				file? file: face/data 
@@ -2333,12 +2333,12 @@ tbl: [
 				block? opts: data/2 
 				opts/current
 			][
-				open-red-table face data
+				open-red-table face data setup
 			][
 				set-data face face/data
-				either conf: face/options/conf [
-					if file? conf [conf: load conf]
-					open-red-table/only face conf
+				either setup: face/options/setup [
+					if file? setup [setup: load setup]
+					open-red-table/only face setup
 				][
 					init face
 				]
