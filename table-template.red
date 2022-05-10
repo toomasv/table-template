@@ -2323,7 +2323,7 @@ tbl: [
 		
 		on-key-down: func [face [object!] event [event! none!]][hot-keys face event]
 		
-		on-created: func [face [object!] event [event! none!] /local file setup][
+		on-created: func [face [object!] event [event! none!] /local file config][
 			make-scroller face
 			either all [
 				file? file: face/data 
@@ -2333,12 +2333,12 @@ tbl: [
 				block? opts: data/2 
 				opts/current
 			][
-				open-red-table face data setup
+				open-red-table face data config
 			][
 				set-data face face/data
-				either setup: face/options/setup [
-					if file? setup [setup: load setup]
-					open-red-table/only face setup
+				either config: face/options/config [
+					if file? config [config: load config]
+					open-red-table/only face config
 				][
 					init face
 				]
