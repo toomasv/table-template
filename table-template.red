@@ -1215,13 +1215,17 @@ tbl: [
 		
 		; MARKS
 		
-		set-new-mark: func [face [object!] cell [pair!]][
-			append face/selected anchor: cell 
+		set-new-mark: func [face [object!] active [pair!]][
+			append face/selected anchor: active 
 		]
 		
-		mark-active: func [face [object!] cell [pair!] /extend /extra][
-			pos: cell
-			active: get-index-address cell
+		mark-active: func [face [object!] cell [pair!] /extend /extra /index][
+			either index [
+				active: cell
+			][
+				pos: cell
+				active: get-index-address cell			
+			]
 			marks/-1: 0.0.0.220
 			either pair? last face/draw [
 				case [
@@ -1773,6 +1777,77 @@ tbl: [
 			fill face
 		]
 
+		select: function [
+			face [object!] 
+			range [pair! integer! block!] 
+			/from 
+				start "Either `top` - start counting from first non-frozen -, or `current` (also `cur`) - start from first visible after frozen -, or `view` - start from current view-port"
+			/col 
+			/row
+		][
+			unmark-active face
+			switch type?/word range [
+				pair! [
+					either from [
+						switch start [
+							view [mark-active/extra face range]
+							top [mark-active/index/extra face top + range]
+							cur current [mark-active/index/extra face current + range]
+						]
+					][
+						mark-active/index face range
+					]
+				]
+				integer! [
+					
+				]
+				block! [
+					parse range [any [s:
+						pair! '- pair! (
+							either from [
+								switch start [
+									view [
+										mark-active/extra  face s/1
+										mark-active/extend face s/3
+									]
+									current cur [
+										mark-active/index/extra  face current + s/1 
+										mark-active/index/extend face current + s/3
+									]
+									top [
+										mark-active/index/extra  face top + s/1 
+										mark-active/index/extend face top + s/3
+									]
+								]
+							][
+								mark-active/index/extra  face s/1 
+								mark-active/index/extend face s/3
+							]
+						)
+					|	pair! (
+							either from [
+								switch start [
+									view [
+										mark-active/extra face s/1
+									]
+									current cur [
+										mark-active/index/extra face current + s/1
+									]
+									top [
+										mark-active/index/extra face top + s/1
+									]
+								]
+							][
+								mark-active/index/extra face s/1
+							]
+						)
+					]]
+					show-marks face
+				]
+			]
+			set-focus tb
+		]
+		
 		; More helpers
 
 		on-sort: func [face [object!] event [event! integer!] /loaded /down /local col c fro idx found][
@@ -2060,7 +2135,7 @@ tbl: [
 				copy-selected  [copy-selected face]
 				cut-selected   [copy-selected/cut face]
 				paste-selected [paste-selected face]
-				transpose       [paste-selected/transpose face]
+				transpose      [paste-selected/transpose face]
 			]
 		]
 		
@@ -2303,7 +2378,7 @@ tbl: [
 
 		on-wheel: function [face [object!] event [event! none!]][;May-be switch shift and ctrl ?
 			dim: pick [x y] event/shift?
-			steps: to-integer -1 * event/picked * either event/ctrl? [grid/:dim][select [x 1 y 3] dim]
+			steps: to-integer -1 * event/picked * either event/ctrl? [grid/:dim][system/words/select [x 1 y 3] dim]
 			scroll face dim steps
 			show-marks face
 		]
