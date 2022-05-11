@@ -107,9 +107,9 @@ tbl: [
 			"Save state as ..." save-state-as
 		]
 		"Selection" [
-			"Copy"      copy-selection
-			"Cut"       cut-selection
-			"Paste"     paste-selection
+			"Copy"      copy-selected
+			"Cut"       cut-selected
+			"Paste"     paste-selected
 			"Transpose" transpose
 		]
 	]
@@ -137,8 +137,8 @@ tbl: [
 		frozen-rows: make block! 20
 		draw-block:  make block! 1000
 		filter-cmd:  make block! 10
-		;selection-data: make block! 10000
-		;selection-figure: make block! 10
+		;selected-data: make block! 10000
+		;selected-figure: make block! 10
 		sizes: make map! 2
 		sizes/x: make map! copy []
 		sizes/y: make map! copy []
@@ -1677,23 +1677,23 @@ tbl: [
 		
 		; COPY / CUT / PASTE
 		
-		copy-selection: function [face [object!] /cut /extern selection-data selection-figure][
-			;clear head selection-data
-			;clear selection-figure
-			either value? 'selection-data [clear head selection-data][selection-data: make block! 1000]
-			either value? 'selection-figure [clear selection-figure][selection-figure: make block! 10]
+		copy-selected: function [face [object!] /cut /extern selected-data selected-figure][
+			;clear head selected-data
+			;clear selected-figure
+			either value? 'selected-data [clear head selected-data][selected-data: make block! 1000]
+			either value? 'selected-figure [clear selected-figure][selected-figure: make block! 10]
 			clpbrd: copy ""
 			parse face/selected [any [
 				s: pair! '- pair! (
 					mn: min s/1 s/3
 					mx: max s/1 s/3
-					append selection-figure fig: mx - mn + 1
+					append selected-figure fig: mx - mn + 1
 					repeat row fig/y [
 						repeat col fig/x [
 							d: mn - 1 + as-pair col row
 							d: as-pair col-index/(d/x) row-index/(d/y)
 							if face/options/auto-index [d/x: d/x - 1]
-							append/only selection-data out: 
+							append/only selected-data out: 
 								either all [face/options/auto-index d/x = 0][
 									d/y
 								][
@@ -1709,7 +1709,7 @@ tbl: [
 					row: row-index/(s/1/y)
 					col: col-index/(s/1/x)
 					if face/options/auto-index [col: col - 1]
-					append selection-data out: 
+					append selected-data out: 
 						either all [face/options/auto-index col = 0][
 							s/1/y
 						][
@@ -1717,7 +1717,7 @@ tbl: [
 						]
 					repend clpbrd [mold out tab]
 					if cut [data/:row/:col: copy ""]
-					append selection-figure 1x1
+					append selected-figure 1x1
 				)
 			]]
 			remove back tail clpbrd
@@ -1725,20 +1725,20 @@ tbl: [
 			if cut [fill face]
 		]
 		
-		paste-selection: function [face [object!] /transpose /extern selection-data selection-figure][
-			selection-data: head selection-data
+		paste-selected: function [face [object!] /transpose /extern selected-data selected-figure][
+			selected-data: head selected-data
 			case [
 				single? face/selected [
 					start: anchor - 1 
-					foreach fig selection-figure [
+					foreach fig selected-figure [
 						repeat y fig/y [
 							repeat x fig/x [
 								pos: start + either transpose [as-pair y x][as-pair x y]
 								pos: as-pair col-index/(pos/x) row-index/(pos/y)
 								if face/options/auto-index [pos/x: pos/x - 1]
-								d: first selection-data
+								d: first selected-data
 								if not pos/x = 0 [data/(pos/y)/(pos/x): d]
-								selection-data: next selection-data
+								selected-data: next selected-data
 							]
 						]
 						start: start + as-pair 0 y
@@ -1746,7 +1746,7 @@ tbl: [
 				]
 				true [
 					copied-size: 0
-					foreach fig selection-figure [
+					foreach fig selected-figure [
 						copied-size: fig/x * fig/y + copied-size
 					]
 					selected-size: 0
@@ -1764,8 +1764,8 @@ tbl: [
 						|	pair! (
 								
 							)
-							;d: first selection-data
-							;selection-data: next selection-data
+							;d: first selected-data
+							;selected-data: next selected-data
 						]]
 					]
 				]
@@ -2057,10 +2057,10 @@ tbl: [
 				image!          [set-col-type face event]
 
 				; SELECTION
-				copy-selection  [copy-selection face]
-				cut-selection   [copy-selection/cut face]
-				paste-selection [paste-selection face]
-				transpose       [paste-selection/transpose face]
+				copy-selected  [copy-selected face]
+				cut-selected   [copy-selected/cut face]
+				paste-selected [paste-selected face]
+				transpose       [paste-selected/transpose face]
 			]
 		]
 		
