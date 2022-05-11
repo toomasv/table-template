@@ -1222,6 +1222,7 @@ tbl: [
 		mark-active: func [face [object!] cell [pair!] /extend /extra][
 			pos: cell
 			active: get-index-address cell
+			marks/-1: 0.0.0.220
 			either pair? last face/draw [
 				case [
 					extend [
@@ -1457,6 +1458,13 @@ tbl: [
 			adjust-scroller face
 			set-last-page
 			unmark-active face
+			fill face
+		]
+		
+		unfilter: func [face [object!]][
+			clear filtered
+			append clear head row-index default-row-index
+			adjust-scroller face
 			fill face
 		]
 
@@ -2014,17 +2022,19 @@ tbl: [
 						filter face col code
 					]
 				]
-				unfilter [
-					append clear row-index default-row-index
-					adjust-scroller face
-					fill face
-				]
+				unfilter    [unfilter face]
 				
 				hide-col    [hide-column   face event]
 				insert-col  [insert-col face event]
 				append-col  [append-col face]
 				
-				find-in-col     [find-in-col face event]
+				find-in-col     [
+					if code: ask-code [
+						code: load code
+						col: get-col-number face event
+						find-in-col face col code
+					]
+				]
 				
 				move-col-first  [move-col face event 'first]
 				move-col-left   [move-col face event 'left]
@@ -2114,20 +2124,19 @@ tbl: [
 			show-marks face
 		]
 		}
-		find-in-col: function [face [object!] event [event!] /extern filtered row-index][
+		find-in-col: function [face [object!] col [integer!] code [any-type!] /extern filtered row-index][
 			;append clear filtered frozen-rows ;include frozen rows in result first
-			if code: ask-code [
-				clear filtered
-				row-index: skip row-index top/y
-				code: load code
-				col: get-col-number face event
-				filter-rows face col code
-				row-index: head row-index
-				clear face/selected
-				foreach r filtered [append face/selected as-pair col r]
-				current/y: top/y
-				adjust-scroller face
-				fill face
+			clear filtered
+			row-index: skip row-index top/y
+			filter-rows face col code
+			row-index: head row-index
+			clear face/selected
+			foreach r filtered [append face/selected as-pair col r]
+			if not empty? face/selected [
+				;current/y: top/y
+				scroll face 'y filtered/1 - current/y - 1 
+				;adjust-scroller face
+				;fill face
 				marks/-1: 0.220.0.220
 				show-marks face
 			]
