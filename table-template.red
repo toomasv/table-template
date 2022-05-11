@@ -37,6 +37,7 @@ tbl: [
 				"By ..."     move-row-by
 				"To ..."     move-row-to
 			]
+			"Find ..."       find-in-row
 			;"Edit"           edit-row
 		] 
 		"Column" [
@@ -72,6 +73,7 @@ tbl: [
 				"By ..."        move-col-by
 				"To ..."        move-col-to
 			]
+			"Find ..."      find-in-col
 			"Edit ..."      edit-column
 			"Type"   [
 				"integer!" integer! 
@@ -787,7 +789,7 @@ tbl: [
 				below text "Code:" 
 				code: area 400x100 focus
 				across button "OK" [out: code/text unview] 
-				button "Cancel" [out: none unview]
+				button "Cancel"    [out: none unview]
 			]
 			out
 		]
@@ -966,42 +968,6 @@ tbl: [
 				]
 			]
 			fill face
-		]
-
-		load-col: function [face [object!] event [event! none!]][
-			col: get-col-number face event
-			if not all [auto: face/options/auto-index  col = 1][
-				if auto [col: col - 1]
-				col-type/:col: event/picked
-				forall data [if not find frozen-rows index? data [data/1/:col: load data/1/:col]]
-			]
-		]
-		
-		draw-col: function [face [object!] event [event! none!]][
-			col: get-col-number face event
-			if not all [auto: face/options/auto-index  col = 1][
-				if auto [col: col - 1]
-				col-type/:col: 'draw
-				foreach y skip row-index top/y [
-					data/(row-index/:y)/:col: to block! data/(row-index/:y)/:col
-				]
-			]
-		]
-		
-		do-col: function [face [object!] event [event! none!]][
-			col: get-col-number face event
-			x:   get-draw-col face event
-			if not all [auto: face/options/auto-index  col = 1][
-				if auto [col: col - 1]
-				col-type/:col: 'do
-				repeat y grid/y [
-					y: frozen/y + y
-					row: get-data-row y
-					cell: face/draw/:y/:x
-					cell/11/3: form do data/:row/:col
-					;probe face/draw/:y
-				]
-			]
 		]
 
 		hide-row: function [face [object!] event [event! integer!]][
@@ -1371,6 +1337,7 @@ tbl: [
 			]]
 			show face
 			system/view/auto-sync?: on
+			face/draw: face/draw
 		]
 		
 		adjust-selection: function [face [object!] step [integer!] s [block!] dim [word!]][
@@ -1392,10 +1359,8 @@ tbl: [
 			clear range
 			repeat i length? bs [if bs/:i [append range i]]
 		]
-
-		filter: function [face [object!] col [integer!] crit [any-type!] /extern filtered row-index][
-			;append clear filtered frozen-rows ;include frozen rows in result first
-			row-index: skip row-index top/y
+		
+		filter-rows: function [face [object!] col [integer!] crit [any-type!] /extern filtered row-index][
 			c: col
 			if auto: face/options/auto-index [c: c - 1];col-index/(col - 1)
 			either block? crit [
@@ -1481,6 +1446,12 @@ tbl: [
 					]
 				]
 			]
+		]
+		
+		filter: function [face [object!] col [integer!] crit [any-type!] /extern filtered row-index][
+			;append clear filtered frozen-rows ;include frozen rows in result first
+			row-index: skip row-index top/y
+			filter-rows face col crit
 			row-index: head append clear row-index filtered
 			current/y: top/y
 			adjust-scroller face
@@ -1523,6 +1494,7 @@ tbl: [
 					]
 				]
 			]
+			face/draw: face/draw
 			;probe reduce ["freeze:" dim frozen/:dim frozen-nums/:dim grid/:dim freeze-point/:dim]
 		]
 
@@ -1985,25 +1957,48 @@ tbl: [
 		
 		do-menu: function [face [object!] event [event! none!]][
 			switch event/picked [
-				open-table    [open-table face]
-				save-table    [save-table face]
-				save-table-as [save-table-as face]
-				save-state-as [save-state-as face]
-				use-state     [use-state face]
+				; TABLE
+				open-table      [open-table face]
+				save-table      [save-table face]
+				save-table-as   [save-table-as face]
+				save-state-as   [save-state-as face]
+				use-state       [use-state face]
+				unhide-all      [unhide-all  face]
 				;force-state   [use-state/force face]
 				
-				edit-cell     [on-dbl-click face event]
-				freeze-cell   [freeze face event 'y freeze face event 'x]
-				unfreeze-cell [unfreeze face 'y unfreeze face 'x]
+				; CELL
+				edit-cell       [on-dbl-click face event]
+				freeze-cell     [freeze face event 'y freeze face event 'x]
+				unfreeze-cell   [unfreeze face 'y unfreeze face 'x]
 			
-				freeze-row    [freeze face event 'y]
-				unfreeze-row  [unfreeze face 'y]
-				freeze-col    [freeze face event 'x]
-				unfreeze-col  [unfreeze face 'x]
+				; ROW
+				freeze-row      [freeze face event 'y]
+				unfreeze-row    [unfreeze face 'y]
+				default-height  [set-default-height face event]
 				
-				default-height [set-default-height face event]
-				default-width  [set-default-width  face event]
-				full-height    [set-full-height    face event]
+				hide-row        [hide-row   face event]
+				insert-row      [insert-row face event]
+				append-row      [append-row face]
+				
+				find-in-row     [find-in-row face event]
+				
+				move-row-top    [move-row face event 'top]
+				move-row-up     [move-row face event 'up]
+				move-row-down   [move-row face event 'down]
+				move-row-bottom [move-row face event 'bottom]
+				move-row-by     [if integer? step: load ask-code [move-row face event step]]
+				move-row-to     [if integer? pos:  load ask-code [move-row/to face event pos]]
+				
+				remove-row      [remove-row  face event]
+				restore-row     [restore-row face]
+				delete-row      [delete-row  face event]
+				unhide-row      [unhide face 'y]
+				
+				; COLUMN
+				freeze-col      [freeze face event 'x]
+				unfreeze-col    [unfreeze face 'x]
+				default-width   [set-default-width  face event]
+				full-height     [set-full-height    face event]
 				remove-full-height [remove-full-height face]
 				
 				sort-up          [on-sort face event]
@@ -2025,20 +2020,11 @@ tbl: [
 					fill face
 				]
 				
-				hide-row    [hide-row   face event]
-				insert-row  [insert-row face event]
-				append-row  [append-row face]
-				
 				hide-col    [hide-column   face event]
 				insert-col  [insert-col face event]
 				append-col  [append-col face]
 				
-				move-row-top    [move-row face event 'top]
-				move-row-up     [move-row face event 'up]
-				move-row-down   [move-row face event 'down]
-				move-row-bottom [move-row face event 'bottom]
-				move-row-by     [if integer? step: load ask-code [move-row face event step]]
-				move-row-to     [if integer? pos:  load ask-code [move-row/to face event pos]]
+				find-in-col     [find-in-col face event]
 				
 				move-col-first  [move-col face event 'first]
 				move-col-left   [move-col face event 'left]
@@ -2049,32 +2035,22 @@ tbl: [
 
 				edit-column     [edit-column face event]
 				
-				copy-selection  [copy-selection face]
-				cut-selection   [copy-selection/cut face]
-				paste-selection [paste-selection face]
-				transpose       [paste-selection/transpose face]
-				
-				unhide-all      [unhide-all  face]
-				unhide-row      [unhide face 'y]
 				unhide-col      [unhide face 'x]
-				
-				remove-row      [remove-row  face event]
-				restore-row     [restore-row face]
-				delete-row      [delete-row  face event]
-				
 				remove-col      [remove-col  face event]
 				restore-col     [restore-col face]
 				delete-col      [delete-col  face event]
 
-				;load            [load-col  face event]
-				;draw            [draw-col  face event]
-				;do              [do-col    face event]
-				
 				load draw do icon 
 				integer! float! percent! 
 				string! char! block! 
 				date! time! logic! 
 				image!          [set-col-type face event]
+
+				; SELECTION
+				copy-selection  [copy-selection face]
+				cut-selection   [copy-selection/cut face]
+				paste-selection [paste-selection face]
+				transpose       [paste-selection/transpose face]
 			]
 		]
 		
@@ -2112,6 +2088,49 @@ tbl: [
 				]
 			]
 			no-over: false
+		]
+		
+		find-in-row: function [face [object!] event [event!]][
+			code: ask-code
+			clear face/selected
+			r: get-row-number face event
+			foreach c col-index [
+				if face/options/auto-index [c0: c - 1]
+				if (form data/:r/:c0) ~ code [append face/selected as-pair c r]
+			]
+			;probe face/selected
+			show-marks face
+		]
+		comment {
+		find-in-col: function [face [object!] event [event!]][
+			code: ask-code
+			clear face/selected
+			c: get-col-number face event
+			if face/options/auto-index [c0: c - 1]
+			foreach r skip row-index top/y [
+				if (form data/:r/:c0) ~ code [append face/selected as-pair c r]
+			]
+			;probe face/selected
+			show-marks face
+		]
+		}
+		find-in-col: function [face [object!] event [event!] /extern filtered row-index][
+			;append clear filtered frozen-rows ;include frozen rows in result first
+			if code: ask-code [
+				clear filtered
+				row-index: skip row-index top/y
+				code: load code
+				col: get-col-number face event
+				filter-rows face col code
+				row-index: head row-index
+				clear face/selected
+				foreach r filtered [append face/selected as-pair col r]
+				current/y: top/y
+				adjust-scroller face
+				fill face
+				marks/-1: 0.220.0.220
+				show-marks face
+			]
 		]
 		
 		; OPEN
@@ -2331,7 +2350,7 @@ tbl: [
 				data: load file
 				data/1 = 'Red
 				block? opts: data/2 
-				opts/current
+				;opts/current
 			][
 				open-red-table face data config
 			][
