@@ -138,7 +138,7 @@ tbl: [
 		draw-block:  make block! 1000
 		filter-cmd:  make block! 10
 		;selected-data: make block! 10000
-		;selected-figure: make block! 10
+		;selected-range: make block! 10
 		sizes: make map! 2
 		sizes/x: make map! copy []
 		sizes/y: make map! copy []
@@ -1681,24 +1681,28 @@ tbl: [
 		
 		; COPY / CUT / PASTE
 		
-		copy-selected: function [face [object!] /cut /extern selected-data selected-figure][
-			;clear head selected-data
-			;clear selected-figure
-			either value? 'selected-data [clear head selected-data][selected-data: make block! 1000]
-			either value? 'selected-figure [clear selected-figure][selected-figure: make block! 10]
+		copy-selected: function [face [object!] /cut /extern selected-data selected-range][
+			either value? 'selected-data  [
+				clear selected-data 
+			][
+				selected-data:  make block! 1000
+			]
+			selected-range: copy face/selected
 			clpbrd: copy ""
 			parse face/selected [any [
 				s: pair! '- pair! (
-					mn: min s/1 s/3
-					mx: max s/1 s/3
-					append selected-figure fig: mx - mn + 1
-					repeat row fig/y [
-						repeat col fig/x [
-							d: mn - 1 + as-pair col row
+					start: s/1
+					dabs: absolute df: s/3 - s/1
+					sign: 1x1 
+					if df/x < 0 [sign/x: -1]
+					if df/y < 0 [sign/y: -1]
+					repeat row dabs/y + 1  [
+						repeat col dabs/x + 1 [
+							d: start - sign + (sign * as-pair col row)
 							d: as-pair col-index/(d/x) row-index/(d/y)
-							if face/options/auto-index [d/x: d/x - 1]
+							if auto: face/options/auto-index [d/x: d/x - 1]
 							append/only selected-data out: 
-								either all [face/options/auto-index d/x = 0][
+								either all [auto d/x = 0][
 									d/y
 								][
 									data/(d/y)/(d/x)
@@ -1712,16 +1716,16 @@ tbl: [
 				|  pair! (
 					row: row-index/(s/1/y)
 					col: col-index/(s/1/x)
-					if face/options/auto-index [col: col - 1]
-					append selected-data out: 
-						either all [face/options/auto-index col = 0][
+					if auto: face/options/auto-index [col: col - 1]
+					append/only selected-data out: 
+						either all [auto col = 0][
 							s/1/y
 						][
 							data/:row/:col
 						]
 					repend clpbrd [mold out tab]
-					if cut [data/:row/:col: copy ""]
-					append selected-figure 1x1
+					if cut [data/:row/:col: make type? out 0]
+					;append selected-range 1x1
 				)
 			]]
 			remove back tail clpbrd
@@ -1729,51 +1733,63 @@ tbl: [
 			if cut [fill face]
 		]
 		
-		paste-selected: function [face [object!] /transpose /extern selected-data selected-figure][
-			selected-data: head selected-data
-			case [
-				single? face/selected [
-					start: anchor - 1 
-					foreach fig selected-figure [
-						repeat y fig/y [
-							repeat x fig/x [
-								pos: start + either transpose [as-pair y x][as-pair x y]
-								pos: as-pair col-index/(pos/x) row-index/(pos/y)
-								if face/options/auto-index [pos/x: pos/x - 1]
-								d: first selected-data
-								if not pos/x = 0 [data/(pos/y)/(pos/x): d]
-								selected-data: next selected-data
-							]
+		parse-figure: function [face [object!] selection [block!] start [pair!] /extern selected-data][
+			parse selection [any [s:
+				(diff: s/1 - selection/1)
+				pair! '- pair! (
+					dabs: absolute df: s/3 - s/1
+					sign: 1x1 
+					if df/x < 0 [sign/x: -1]
+					if df/y < 0 [sign/y: -1]
+					repeat y dabs/y + 1 [
+						repeat x dabs/x + 1 [
+							pos: start + diff - sign + (sign * as-pair x y)
+							if face/options/auto-index [pos/x: pos/x - 1]
+							d: first selected-data
+							;probe reduce ["p-p:" selection start diff pos d selected-data]
+							if not pos/x = 0 [data/(pos/y)/(pos/x): d]
+							selected-data: next selected-data
 						]
-						start: start + as-pair 0 y
 					]
-				]
-				true [
-					copied-size: 0
-					foreach fig selected-figure [
-						copied-size: fig/x * fig/y + copied-size
-					]
-					selected-size: 0
-					parse face/selected [any [s:
-						pair! '- pair! (p: s/3 - s/1 + 1 selected-size: p/x * p/y + selected-size)
-					|	pair! (selected-size: selected-size + 1)
-					]]
-					either copied-size <> selected-size [
-						print "Warning! Sizes do not match."
-					][
-						parse face/selected [any [s:
-							pair! '- pair! (
-								
-							)
-						|	pair! (
-								
-							)
-							;d: first selected-data
-							;selected-data: next selected-data
-						]]
-					]
+				)
+			|	pair! (
+					pos: start + diff
+					if face/options/auto-index [pos/x: pos/x - 1]
+					d: first selected-data
+					;probe reduce ["p:" selection start diff pos d selected-data]
+					if not pos/x = 0 [data/(pos/y)/(pos/x): d]
+					selected-data: next selected-data
+				)
+			]]
+		]
+		
+		paste-selected: function [face [object!] /transpose /extern selected-data selected-range][
+			;selected-data: head selected-data
+			either single? face/selected [
+				start: anchor ;- 1 
+				parse-figure face selected-range start
+			][
+				; Compare copied and selected sizes
+				copied-size: 0
+				parse selected-range [any [s:
+					pair! '- pair! (p: (absolute s/3 - s/1) + 1 copied-size: p/x * p/y + copied-size)
+				|	pair! (copied-size: copied-size + 1)
+				]]
+				selected-size: 0
+				parse face/selected [any [e:
+					pair! '- pair! (q: (absolute e/3 - e/1) + 1 selected-size: q/x * q/y + selected-size)
+				|	pair! (selected-size: selected-size + 1)
+				]]
+				;probe reduce ["copied" selected-range copied-size s p]
+				;probe reduce ["selected" face/selected selected-size e q]
+				either copied-size = selected-size [
+					start: face/selected/1 ;anchor ;- 1 
+					parse-figure face face/selected start
+				][
+					print "Warning! Sizes do not match."
 				]
 			]
+			selected-data: head selected-data
 			fill face
 		]
 
@@ -2451,3 +2467,4 @@ tbl: [
 		on-menu: function [face [object!] event [event! none!]][do-menu face event]
 	]
 ]
+style 'table tbl
