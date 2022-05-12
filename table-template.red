@@ -1733,7 +1733,8 @@ tbl: [
 			if cut [fill face]
 		]
 		
-		parse-figure: function [face [object!] selection [block!] start [pair!] /extern selected-data][
+		parse-selection: function [face [object!] selection [block!] start [pair!] /extern selected-data][
+			;probe reduce [start selection col-index]
 			parse selection [any [s:
 				(diff: s/1 - selection/1)
 				pair! '- pair! (
@@ -1744,9 +1745,11 @@ tbl: [
 					repeat y dabs/y + 1 [
 						repeat x dabs/x + 1 [
 							pos: start + diff - sign + (sign * as-pair x y)
+							pos/x: col-index/(pos/x)
 							if face/options/auto-index [pos/x: pos/x - 1]
+							pos/y: row-index/(pos/y)
 							d: first selected-data
-							;probe reduce ["p-p:" selection start diff pos d selected-data]
+							;probe reduce ["p-p:" diff pos d]
 							if not pos/x = 0 [data/(pos/y)/(pos/x): d]
 							selected-data: next selected-data
 						]
@@ -1754,20 +1757,31 @@ tbl: [
 				)
 			|	pair! (
 					pos: start + diff
+					pos/x: col-index/(pos/x)
 					if face/options/auto-index [pos/x: pos/x - 1]
+					pos/y: row-index/(pos/y)
 					d: first selected-data
-					;probe reduce ["p:" selection start diff pos d selected-data]
+					;probe reduce ["p:" diff pos d]
 					if not pos/x = 0 [data/(pos/y)/(pos/x): d]
 					selected-data: next selected-data
 				)
 			]]
 		]
 		
+		;index-of: function [face [object!] raw [pair!]][
+		;	probe raw
+		;	auto: face/options/auto-index
+		;	x: col-index/(raw/x)
+		;	if auto [x: x - 1]
+		;	y: row-index/(raw/y)
+		;	probe as-pair x y
+		;]
+		
 		paste-selected: function [face [object!] /transpose /extern selected-data selected-range][
 			;selected-data: head selected-data
 			either single? face/selected [
-				start: anchor ;- 1 
-				parse-figure face selected-range start
+				start: anchor
+				parse-selection face selected-range start
 			][
 				; Compare copied and selected sizes
 				copied-size: 0
@@ -1784,7 +1798,7 @@ tbl: [
 				;probe reduce ["selected" face/selected selected-size e q]
 				either copied-size = selected-size [
 					start: face/selected/1 ;anchor ;- 1 
-					parse-figure face face/selected start
+					parse-selection face face/selected start
 				][
 					print "Warning! Sizes do not match."
 				]
