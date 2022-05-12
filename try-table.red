@@ -3,7 +3,7 @@ Red [Needs: 'View]
 ;style 'table tbl
 style 'table #include %table-template.red
 
-file: %data/RV291_29062020120209394.csv  ;%data/annual-enterprise-survey.red ;
+file: %data/RV291.csv  ;%data/annual-enterprise-survey.red ;
 view/flags/options [  ;/no-wait
 	below 
 	caption: h1 "Example Table" 
