@@ -1,7 +1,5 @@
 Red [Needs: 'View]
-;tbl: #include %table-template.red
-;style 'table tbl
-style 'table #include %table-template.red
+#include %table-template.red
 
 file: %data/RV291.csv  ;%data/annual-enterprise-survey.red ;
 view/flags/options [  ;/no-wait
