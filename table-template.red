@@ -21,6 +21,7 @@ tbl: [
 			"Unfreeze"       unfreeze-row
 			"Default height" default-height
 			"Show" [
+				"Select"     select-row
 				"Hide"       hide-row
 				"Unhide"     unhide-row
 				"Remove"     remove-row
@@ -55,6 +56,7 @@ tbl: [
 			"Freeze"        freeze-col
 			"Unfreeze"      unfreeze-col
 			"Show" [
+				"Select"        select-col
 				"Default width" default-width
 				"Full height"   full-height
 				"Hide"          hide-col
@@ -85,6 +87,7 @@ tbl: [
 				"date!"    date! 
 				"time!"    time!
 				"logic!"   logic!
+				"tuple!"   tuple!
 				"image!"   image!
 				"Load"     load
 				"Draw"     draw
@@ -110,7 +113,8 @@ tbl: [
 			"Copy"      copy-selected
 			"Cut"       cut-selected
 			"Paste"     paste-selected
-			"Transpose" transpose
+			;"Transpose" transpose
+			"Color"     color-selected
 		]
 	]
 	actors: [
@@ -148,6 +152,7 @@ tbl: [
 		
 		index: make map! 2
 		col-type: make map! 5
+		colors: make map! 100
 		
 		no-over: false
 		true-char:  #"^(2714)" ;#"^(2713)"
@@ -592,56 +597,65 @@ tbl: [
 			either index-x <= total/x [
 				data-x: col-index/:index-x
 				if auto: face/options/auto-index [data-x: data-x - 1]
-				cell/4:  get-color draw-y frozen?
+				cell/4:  any [
+					colors/(as-pair data-x data-y) 
+					get-color draw-y frozen?
+				]
 				cell/9:  (cell/6: p0) + 1
 				cell/10: (cell/7: p1) - 1 
 				type: col-type/:data-x ; Check whether it is set
-				switch/default type [; AND whether it is specific
-					draw [ 
-						cell/11/1: 'translate
-						cell/11/2: cell/9
-						cell/11/3: copy/deep data/:data-y/:data-x
-					]
-					image! [
-						switch type?/word data/:data-y/:data-x [
-							word! image! [
-								cell/11/1: 'image
-								cell/11/2: data/:data-y/:data-x
-								cell/11/3: cell/9
-							]
-							file! url! [
-								cell/11/1: 'image
-								cell/11/2: load data/:data-y/:data-x
-								cell/11/3: cell/9
-							]
-						]
-					]
-					icon [
-						either all [
-							1 < length? ico-data: split data/:data-y/:data-x #"/"
-							image? ico: get-icon/type ico-data/1 ico-data/2 ico-data/3
-						][
-							cell/11/1: 'image
-							cell/11/2: ico
-							cell/11/3: cell/9
-						][
-							cell/11/1: 'text
+				either frozen? [][
+					switch/default type [; AND whether it is specific
+						draw [ 
+							cell/11/1: 'translate
 							cell/11/2: cell/9
-							cell/11/3: copy ""
+							cell/11/3: copy/deep data/:data-y/:data-x
 						]
-						;ico: ico-data: none
+						image! [
+							switch type?/word data/:data-y/:data-x [
+								word! image! [
+									cell/11/1: 'image
+									cell/11/2: data/:data-y/:data-x
+									cell/11/3: cell/9
+								]
+								file! url! [
+									cell/11/1: 'image
+									cell/11/2: load data/:data-y/:data-x
+									cell/11/3: cell/9
+								]
+							]
+						]
+						icon [
+							either all [
+								1 < length? ico-data: split data/:data-y/:data-x #"/"
+								image? ico: get-icon/type ico-data/1 ico-data/2 ico-data/3
+							][
+								cell/11/1: 'image
+								cell/11/2: ico
+								cell/11/3: cell/9
+							][
+								cell/11/1: 'text
+								cell/11/2: cell/9
+								cell/11/3: copy ""
+							]
+							;ico: ico-data: none
+						]
+					][
+						cell/11/1: 'text
+						cell/11/2:  4x2  +  p0
+						cell/11/3: form either all [auto data-x = 0] [data-y][
+							switch/default type [
+								do [do data/:data-y/:data-x]
+								logic! [either data/:data-y/:data-x [true-char][false-char]]
+							][
+								data/:data-y/:data-x
+							]
+						]
 					]
 				][
 					cell/11/1: 'text
 					cell/11/2:  4x2  +  p0
-					cell/11/3: form either all [auto data-x = 0] [data-y][
-						switch/default type [
-							do [do data/:data-y/:data-x]
-							logic! [either data/:data-y/:data-x [true-char][false-char]]
-						][
-							data/:data-y/:data-x
-						]
-					]
+					cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
 				]
 			][
 				fix-cell-outside cell 'x 
@@ -983,11 +997,15 @@ tbl: [
 			show-marks face			
 		]
 		
-		hide-column: function [face [object!] event [event! integer!]][
+		hide-col: function [face [object!] event [event! integer!]][
 			col: either integer? event [event][get-col-number face event]
 			sizes/x/:col: 0
 			fill face
 			show-marks face
+		]
+		
+		hide-column: function [face [object!] event [event! integer!]][
+			hide-col face event
 		]
 		
 		hide-columns: function [face [object!] cols [block!]][
@@ -1357,6 +1375,33 @@ tbl: [
 			show-marks face
 		]
 		
+		color-selected: function [face [object!] color [tuple! word! none!]][
+			unless color [color: load ask-code]
+			parse face/selected [any [s:
+				pair! '- pair! (
+					mn: (min s/1 s/3) - 1
+					mx: max s/1 s/3
+					df: mx - mn
+					repeat dy df/y [
+						repeat dx df/x [
+							pos: mn + as-pair dx dy
+							x: col-index/(pos/x)
+							if face/options/auto-index [x: x - 1]
+							y: row-index/(pos/y)
+							put colors as-pair x y color
+						]
+					]
+				)
+			|	pair! (
+					x: col-index/(s/1/x)
+					if face/options/auto-index [x: x - 1]
+					y: row-index/(s/1/y)
+					put colors as-pair x y color
+				)
+			]]
+			fill face
+		]
+		
 		;----------
 		
 		normalize-range: function [range [block!]][
@@ -1679,7 +1724,7 @@ tbl: [
 			][step]
 		]
 		
-		; COPY / CUT / PASTE
+		; SELECT / COPY / CUT / PASTE
 		
 		copy-selected: function [face [object!] /cut /extern selected-data selected-range][
 			either value? 'selected-data  [
@@ -1768,17 +1813,7 @@ tbl: [
 			]]
 		]
 		
-		;index-of: function [face [object!] raw [pair!]][
-		;	probe raw
-		;	auto: face/options/auto-index
-		;	x: col-index/(raw/x)
-		;	if auto [x: x - 1]
-		;	y: row-index/(raw/y)
-		;	probe as-pair x y
-		;]
-		
 		paste-selected: function [face [object!] /transpose /extern selected-data selected-range][
-			;selected-data: head selected-data
 			either single? face/selected [
 				start: anchor
 				parse-selection face selected-range start
@@ -1794,8 +1829,6 @@ tbl: [
 					pair! '- pair! (q: (absolute e/3 - e/1) + 1 selected-size: q/x * q/y + selected-size)
 				|	pair! (selected-size: selected-size + 1)
 				]]
-				;probe reduce ["copied" selected-range copied-size s p]
-				;probe reduce ["selected" face/selected selected-size e q]
 				either copied-size = selected-size [
 					start: face/selected/1 ;anchor ;- 1 
 					parse-selection face face/selected start
@@ -1876,6 +1909,37 @@ tbl: [
 				]
 			]
 			set-focus tb
+		]
+		
+		which-index: function [face [object!] event [event! integer!] dim [word!]][
+			either event? event [
+				switch dim [
+					row [
+						dri: get-draw-row face event
+						get-index-row dri
+					]
+					col [
+						dri: get-draw-col face event
+						get-index-col dri
+					]
+				]
+			][
+				event
+			]
+		]
+		
+		select-row: function [face [object!] event [event! integer!] /add][
+			ri: which-index face event 'row
+			unless add [clear face/selected]
+			repend face/selected [as-pair 1 ri '- as-pair total/x ri]
+			show-marks face
+		]
+		
+		select-col: function [face [object!] event [event! integer!] /add][
+			ci: which-index face event 'col
+			unless add [clear face/selected]
+			repend face/selected [as-pair ci 1 '- as-pair ci total/y]
+			show-marks face
 		]
 		
 		; More helpers
@@ -2089,6 +2153,7 @@ tbl: [
 				unfreeze-row    [unfreeze face 'y]
 				default-height  [set-default-height face event]
 				
+				select-row      [select-row face event]
 				hide-row        [hide-row   face event]
 				insert-row      [insert-row face event]
 				append-row      [append-row face]
@@ -2129,7 +2194,8 @@ tbl: [
 				]
 				unfilter    [unfilter face]
 				
-				hide-col    [hide-column   face event]
+				select-col  [select-col face event]
+				hide-col    [hide-col   face event]
 				insert-col  [insert-col face event]
 				append-col  [append-col face]
 				
@@ -2159,13 +2225,14 @@ tbl: [
 				integer! float! percent! 
 				string! char! block! 
 				date! time! logic! 
-				image!          [set-col-type face event]
+				image! tuple!   [set-col-type face event]
 
 				; SELECTION
-				copy-selected  [copy-selected face]
-				cut-selected   [copy-selected/cut face]
-				paste-selected [paste-selected face]
-				transpose      [paste-selected/transpose face]
+				copy-selected   [copy-selected face]
+				cut-selected    [copy-selected/cut face]
+				paste-selected  [paste-selected face]
+				transpose       [paste-selected/transpose face]
+				color-selected  [color-selected face none]
 			]
 		]
 		
@@ -2216,19 +2283,7 @@ tbl: [
 			;probe face/selected
 			show-marks face
 		]
-		comment {
-		find-in-col: function [face [object!] event [event!]][
-			code: ask-code
-			clear face/selected
-			c: get-col-number face event
-			if face/options/auto-index [c0: c - 1]
-			foreach r skip row-index top/y [
-				if (form data/:r/:c0) ~ code [append face/selected as-pair c r]
-			]
-			;probe face/selected
-			show-marks face
-		]
-		}
+
 		find-in-col: function [face [object!] col [integer!] code [any-type!] /extern filtered row-index][
 			;append clear filtered frozen-rows ;include frozen rows in result first
 			clear filtered
