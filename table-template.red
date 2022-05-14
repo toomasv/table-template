@@ -605,7 +605,11 @@ tbl: [
 				cell/9:  (cell/6: p0) + 1
 				cell/10: (cell/7: p1) - 1 
 				type: col-type/:data-x ; Check whether it is set
-				either frozen? [][
+				either frozen? [
+					cell/11/1: 'text
+					cell/11/2:  4x2  +  p0
+					cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
+				][
 					switch/default type [; AND whether it is specific
 						draw [ 
 							cell/11/1: 'translate
@@ -653,10 +657,6 @@ tbl: [
 							]
 						]
 					]
-				][
-					cell/11/1: 'text
-					cell/11/2:  4x2  +  p0
-					cell/11/3: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
 				]
 			][
 				fix-cell-outside cell 'x 
@@ -2340,8 +2340,8 @@ tbl: [
 				]
 			]
 			
-			box:           any [opts/box default-box]
-			top:           case/all [
+			box: any [opts/box default-box]
+			top: case/all [
 				(x: frozen/x) > 0 [x: frozen-cols/:x] 
 				(y: frozen/y) > 0 [y: frozen-rows/:y] 
 				true [as-pair x y]
