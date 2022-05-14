@@ -108,13 +108,14 @@ tbl: [
 			"Save as ..." save-table-as
 			"Use state ..." use-state
 			"Save state as ..." save-state-as
+			"Clear color" clear-color
 		]
 		"Selection" [
 			"Copy"      copy-selected
 			"Cut"       cut-selected
 			"Paste"     paste-selected
 			;"Transpose" transpose
-			"Color"     color-selected
+			"Set Color" color-selected
 		]
 	]
 	actors: [
@@ -2142,6 +2143,7 @@ tbl: [
 				use-state       [use-state face]
 				unhide-all      [unhide-all  face]
 				;force-state   [use-state/force face]
+				clear-color     [clear colors fill face]
 				
 				; CELL
 				edit-cell       [on-dbl-click face event]
