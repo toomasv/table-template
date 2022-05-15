@@ -676,26 +676,37 @@ tbl: [
 		][
 			data-x: col-index/:index-x
 			if auto: face/options/auto-index [data-x: data-x - 1]
-			case [
-				draw?: all [t: col-type/:data-y t = 'draw][
-					drawing: data/:data-y/:data-x
+			either frozen? [
+				text: form data/:data-y/:data-x
+				insert/only at row draw-x compose/only [
+					line-width 1
+					fill-pen (get-color draw-y frozen?)
+					box (p0) (p1)
+					clip (p0 + 1) (p1 - 1) 
+					(reduce ['text p0 + 4x2 text])
 				]
-				all [t: col-type/:data-y t = 'do][
-					text: form do data/:data-y/:data-x
+			][
+				case [
+					draw?: all [t: col-type/:data-x t = 'draw][
+						drawing: any [data/:data-y/:data-x copy []]
+					]
+					all [t: col-type/:data-x t = 'do][
+						text: form do data/:data-y/:data-x
+					]
+					true [
+						text: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
+					]
 				]
-				true [
-					text: form either all [auto data-x = 0] [data-y][data/:data-y/:data-x]
+				insert/only at row draw-x compose/only [
+					line-width 1
+					fill-pen (get-color draw-y frozen?)
+					box (p0) (p1)
+					clip (p0 + 1) (p1 - 1) 
+					(reduce case [
+						draw? [['translate  p0 + 1x1  drawing]]
+						true  [['text       p0 + 4x2  text]]
+					])
 				]
-			]
-			insert/only at row draw-x compose/only [
-				line-width 1
-				fill-pen (get-color draw-y frozen?)
-				box (p0) (p1)
-				clip (p0 + 1) (p1 - 1) 
-				(reduce case [
-					draw? [['translate p0 + 1 drawing]]
-					true [['text p0 + 4x2 text]]
-				])
 			]
 		]
 
@@ -739,8 +750,10 @@ tbl: [
 			while [px0 < size/x][
 				grid-x: grid-x + 1
 				index-x: current/x + grid-x
+				;probe reduce [data-y draw-y index-x]
 				either index-x <= total/x [
 					px0: set-cell face row index-x data-y draw-y grid-x px0 py0 py1 frozen?
+					;probe reduce [draw-y index-x grid-x row]
 					grid/x: grid-x
 				][
 					cell: row/:grid-x
@@ -749,6 +762,7 @@ tbl: [
 					][break]
 				]
 			]
+			;probe copy row
 			cell: row/(grid-x + 1)
 			if all [block? cell cell/6/x < self/size/x] [ 
 				fix-cell-outside cell 'x
@@ -956,6 +970,7 @@ tbl: [
 				old-type: col-type/:col
 				col-type/:col: type: either event? event [event/picked][typ]
 				forall data [
+					;probe reduce [data/1]
 					either block? data/1 [
 						if not find frozen-rows index? data [
 							data/1/:col: switch/default type [
@@ -982,7 +997,7 @@ tbl: [
 					][break]
 				]
 			]
-			fill face
+			if not only [fill face]
 		]
 
 		hide-row: function [face [object!] event [event! integer!]][
@@ -2365,7 +2380,9 @@ tbl: [
 			face/draw: copy []
 			marks: insert tail face/draw [line-width 2.5 fill-pen 0.0.0.220]
 			
-			either face/draw [fill face][init-fill/only face]
+			;either face/draw [
+				fill face
+			;][init-fill/only face]
 			show-marks face
 			no-over: true
 		]
