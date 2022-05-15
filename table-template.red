@@ -2342,9 +2342,12 @@ tbl: [
 			frozen: as-pair length? frozen-cols length? frozen-rows
 			append col-index either opts/col-index [opts/col-index][default-col-index]
 			append row-index either opts/row-index [opts/row-index][default-row-index]
-			if sz: opts/sizes [
+			either sz: opts/sizes [
 				if sz/x [sizes/x: to-map sz/x]
 				if sz/y [sizes/y: to-map sz/y]
+			][
+				if sz: opts/col-sizes [sizes/x: to-map sz]
+				if sz: opts/row-sizes [sizes/y: to-map sz]
 			]
 			if opts/col-type  [
 				col-type: opts/col-type
