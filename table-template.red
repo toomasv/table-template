@@ -107,8 +107,10 @@ tbl: [
 			"Save"        save-table
 			"Save as ..." save-table-as
 			"Use state ..." use-state
-			"Save state as ..." save-state-as
+			"Save state as ..." save-state
 			"Clear color" clear-color
+			"Select named range" []
+			"Forget names" forget-names
 		]
 		"Selection" [
 			"Copy"      copy-selected
@@ -116,6 +118,7 @@ tbl: [
 			"Paste"     paste-selected
 			;"Transpose" transpose
 			"Set Color" color-selected
+			"Set Name"  name-selected
 		]
 	]
 	actors: [
@@ -158,6 +161,8 @@ tbl: [
 		no-over: false
 		true-char:  #"^(2714)" ;#"^(2713)"
 		false-char: #"^(274C)" ;#"^(2717)"
+		
+		names: make map! 10
 
 		; SETTING
 		
@@ -1418,6 +1423,42 @@ tbl: [
 			fill face
 		]
 		
+		name-selected: function [face [object!] name [word! none!]][
+			unless name [name: ask-code]
+			names/:name: copy face/selected
+			if block? items: face/menu/"Table"/"Select named range" [
+				repend items [name to-word name]
+			]
+		]
+		
+		forget-names: function [face [object!] names [word! block! none!]][
+			unless names [names: load ask-code]
+			case [
+				names = 'all [
+					clear self/names 
+					all [items: face/menu/"Table"/"Select named range" clear items]
+				]
+				word? names [
+					remove/key self/names names: form names
+					all [
+						items: face/menu/"Table"/"Select named range" 
+						found: find items names 
+						remove/part found 2
+					]
+				]
+				block? names [
+					foreach name names [
+						remove/key self/names name: form name
+						all [
+							items: face/menu/"Table"/"Select named range" 
+							found: find items name 
+							remove/part found 2
+						]
+					]
+				]
+			]
+		]
+		
 		;----------
 		
 		normalize-range: function [range [block!]][
@@ -1533,14 +1574,21 @@ tbl: [
 			fill face
 		]
 
-		freeze: function [face [object!] event [event! none!] dim [word!] /extern grid [pair!]][
+		freeze: function [face [object!] event [event!] dim [word!] /extern grid [pair!]][
 			fro: frozen
 			cur: current
-			frozen/:dim: either dim = 'x [
-				get-draw-col face event
-			][
-				get-draw-row face event
-			]
+			;either event? event [
+				frozen/:dim: either dim = 'x [
+					get-draw-col face event
+				][
+					get-draw-row face event
+				]
+			;][
+			;	case [
+			;		all [dim integer? event][frozen/:dim: event]
+			;		pair? event [frozen: event]
+			;	]
+			;]
 			fro/:dim: frozen/:dim - fro/:dim
 			grid/:dim: grid/:dim - fro/:dim
 			set-freeze-point face 
@@ -1958,6 +2006,12 @@ tbl: [
 			show-marks face
 		]
 		
+		select-name: function [face [object!] name [string!] /add][
+			unless add [clear face/selected]
+			append face/selected names/:name
+			show-marks face
+		]
+		
 		; More helpers
 
 		on-sort: func [face [object!] event [event! integer!] /loaded /down /local col c fro idx found][
@@ -2149,16 +2203,17 @@ tbl: [
 		]
 		
 		do-menu: function [face [object!] event [event! none!]][
-			switch event/picked [
+			switch/default event/picked [
 				; TABLE
 				open-table      [open-table face]
 				save-table      [save-table face]
 				save-table-as   [save-table-as face]
-				save-state-as   [save-state-as face]
+				save-state   [save-state face]
 				use-state       [use-state face]
 				unhide-all      [unhide-all  face]
 				;force-state   [use-state/force face]
 				clear-color     [clear colors fill face]
+				forget-names    [forget-names face none]
 				
 				; CELL
 				edit-cell       [on-dbl-click face event]
@@ -2250,6 +2305,13 @@ tbl: [
 				paste-selected  [paste-selected face]
 				transpose       [paste-selected/transpose face]
 				color-selected  [color-selected face none]
+				name-selected   [name-selected face none]
+			][
+				case [
+					all [menu: face/menu/"Table"/"Select named range" find menu name: form event/picked] [
+						select-name face name
+					]
+				]
 			]
 		]
 		
@@ -2336,7 +2398,7 @@ tbl: [
 			
 			init-grid face ;/only
 			init-indices/only face
-			
+			;probe reduce [opts opts/frozen-rows]
 			if opts/frozen-cols [append frozen-cols opts/frozen-cols]
 			if opts/frozen-rows [append frozen-rows opts/frozen-rows]
 			frozen: as-pair length? frozen-cols length? frozen-rows
@@ -2349,13 +2411,15 @@ tbl: [
 				if sz: opts/col-sizes [sizes/x: to-map sz]
 				if sz: opts/row-sizes [sizes/y: to-map sz]
 			]
-			if opts/col-type  [
-				col-type: opts/col-type
+			either opts/col-type  [
+				col-type: to-map opts/col-type
 				if only [
 					foreach [col type] body-of col-type [
 						set-col-type/only face col type
 					]
 				]
+			][
+				col-type: clear col-type
 			]
 			
 			box: any [opts/box default-box]
@@ -2370,6 +2434,8 @@ tbl: [
 			active:        any [opts/active   1x1]
 			
 			pos: active - current + frozen
+			
+			either opts/names [names: to-map opts/names][clear names]
 			
 			;probe reduce [frozen frozen-rows frozen-cols top current face/selected anchor active pos]
 			
@@ -2409,11 +2475,15 @@ tbl: [
 			file
 		]
 		
-		use-state: function [face [object!]][
-			if file: request-file/title "Select state to use ..." [
-				state: load file
-				open-red-table/only face state
+		use-state: function [face [object!] /with opts [block!]][
+			either with [
+				state: opts
+			][
+				if file: request-file/title "Select state to use ..." [
+					state: load file
+				]
 			]
+			if state [open-red-table/only face state]
 		]
 		
 		; SAVE
@@ -2424,24 +2494,40 @@ tbl: [
 				frozen-cols: (frozen-cols)
 				top: (top)
 				current: (current)
-				sizes: (sizes)
+				col-sizes: (body-of sizes/x)
+				row-sizes: (body-of sizes/y)
 				box: (box)
 				row-index: (row-index)
 				col-index: (col-index)
 				auto-index: (face/options/auto-index)
-				col-type: (col-type)
+				col-type: (body-of col-type)
 				selected: (face/selected)
 				anchor: (anchor)
 				active: (active)
+				names: (body-of names)
 				;scroller-x: (scroller/x/position)
 				;scroller-y: (scroller/y/position)
 			]
 		]
 		
-		save-state-as: function [face [object!]][
+		save-state: function [face [object!] /only /with included [block!] /except excluded [block!]][
 			state: get-table-state face
-			if file: request-file/save/title "Save state as ..." [
-				save file state
+			
+			if any [with except] [
+				state: to map! state
+				foreach key keys-of state [
+					case/all [
+						with   [if not find included key [remove/key state key]]
+						except [if     find excluded key [remove/key state key]]
+					]
+				]
+				state: to block! state
+			]
+			
+			either only [state][
+				if file: request-file/save/title "Save state as ..." [
+					save file state
+				]
 			]
 		]
 		

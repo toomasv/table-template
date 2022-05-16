@@ -1,0 +1,240 @@
+#(
+    "albums" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [
+            1 51 
+            3 49 
+            2 241
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+    "artists" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x265 
+        col-sizes: [
+            1 46 
+            2 454
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x1] 
+        anchor: 1x1 
+        active: 1x1 
+        names: []
+    ]
+    "customers" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 1x1 
+        col-sizes: [
+            1 40 
+            4 233 
+            5 225 
+            9 76 
+            10 128 
+            11 135 
+            13 78 
+            12 194
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [2x7] 
+        anchor: 2x7 
+        active: 2x7 
+        names: []
+    ]
+    "employees" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 9x1 
+        col-sizes: [
+            1 36 
+            4 125 
+            5 44 
+            6 121 
+            7 123 
+            8 169 
+            10 46 
+            11 55 
+            12 68 
+            13 113 
+            14 114 
+            15 185
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [10x2] 
+        anchor: 10x2 
+        active: 10x2 
+        names: []
+    ]
+    "genres" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x15 
+        col-sizes: [
+            1 45 
+            2 160
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x16] 
+        anchor: 1x16 
+        active: 1x16 
+        names: []
+    ]
+    "invoices" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [
+            1 47 
+            2 56 
+            3 128 
+            4 156 
+            6 58 
+            9 46
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+    "invoice_items" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [] 
+        row-sizes: [] 
+        box: 58x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+    "media_types" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [
+            1 54 
+            2 176
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+    "playlists" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x8 
+        col-sizes: [
+            1 51 
+            2 183
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x9] 
+        anchor: 1x9 
+        active: 1x9 
+        names: []
+    ]
+    "playlist_track" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [
+            1 55 
+            2 51
+        ] 
+        row-sizes: [] 
+        box: 100x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+    "tracks" [
+        frozen-rows: [1] 
+        frozen-cols: [] 
+        top: 0x1 
+        current: 0x1 
+        col-sizes: [
+            2 234 
+            6 381 
+            7 75 
+            8 71
+        ] 
+        row-sizes: [] 
+        box: 48x25 
+        auto-index: false 
+        col-type: [
+            1 integer!
+        ] 
+        selected: [1x2] 
+        anchor: 1x2 
+        active: 1x2 
+        names: []
+    ]
+)
