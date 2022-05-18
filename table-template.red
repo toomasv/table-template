@@ -104,6 +104,7 @@ tbl: [
 			"Default height" remove-full-height
 			;"Default width"  set-table-default-width
 			"Open ..."    open-table
+			"Open big ..." open-big
 			"Save"        save-table
 			"Save as ..." save-table-as
 			"Use state ..." use-state
@@ -163,6 +164,8 @@ tbl: [
 		false-char: #"^(274C)" ;#"^(2717)"
 		
 		names: make map! 10
+		big-last: big-length: big-size: prev-length: 0
+		prev-lengths: make block! 100
 
 		; SETTING
 		
@@ -2215,6 +2218,8 @@ tbl: [
 				clear-color     [clear colors fill face]
 				forget-names    [forget-names face none]
 				
+				open-big        [open-big-table face]
+				
 				; CELL
 				edit-cell       [on-dbl-click face event]
 				freeze-cell     [freeze face event 'y freeze face event 'x]
@@ -2468,11 +2473,53 @@ tbl: [
 					%.red = suffix? file 
 					data/1 = 'Red
 					block? opts: data/2 
-					opts/current
+					;opts/current
 				][open-red-table face data][init face];data: load file ;load/as head clear tmp: find/last read/part file 5000 lf 'csv;
 			]
 			no-over: true
 			file
+		]
+		
+		open-big-table: function [face [object!]][
+			if file: request-file/title "Open large file" [
+				self/big-size: length? read/binary file
+				self/big-length: length? csv: head clear find/last read/binary/part file 1'000'000 lf
+				face/data: file
+				
+				self/data: load-csv to-string csv
+				open-red-table/only face [frozen-rows: [1]]
+				;lines: 1 c: csv while [c: find/tail c lf][lines: lines + 1] lines
+			]
+		]
+		
+		next-chunk: function [face [object!]][
+			file: face/data
+			self/big-last: big-last + big-length + 1
+			append self/prev-lengths big-length
+			state: save-state/only/with face [col-sizes col-types frozen-cols] ;col-index ? why error?
+			if attempt [found: find/last read/binary/seek/part file big-last 1'000'000 lf] [
+				self/big-length: length? csv: head clear found
+				;probe reduce ["Next:" big-last big-length]
+				csv: to-string csv 
+				either error? loaded: load-csv csv [probe loaded halt][self/data: loaded]
+				;init face
+				open-red-table/only face state
+			]
+		]
+		
+		prev-chunk: function [face [object!]][
+			file: face/data
+			state: save-state/only/with face [col-sizes col-types frozen-cols]
+			if not empty? prev-lengths [
+				self/big-length: take/last prev-lengths
+				self/big-last: big-last - big-length - 1 
+				;probe reduce ["Prev:" big-last big-length]
+				csv: read/binary/seek/part file big-last big-length
+				csv: to-string csv 
+				either error? loaded: load-csv csv [probe loaded halt][self/data: loaded]
+				;init face
+				open-red-table/only face state
+			]
 		]
 		
 		use-state: function [face [object!] /with opts [block!]][
