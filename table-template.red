@@ -2480,13 +2480,14 @@ tbl: [
 			file
 		]
 		
-		open-big-table: function [face [object!]][
-			if file: request-file/title "Open large file" [
+		open-big-table: function [face [object!] /with file][
+			if any [file file: request-file/title "Open large file"] [
 				self/big-size: length? read/binary file
 				self/big-length: length? csv: head clear find/last read/binary/part file 1'000'000 lf
 				face/data: file
 				
 				self/data: load-csv to-string csv
+				;save rejoin [file "-1.redbin"] self/data
 				open-red-table/only face [frozen-rows: [1]]
 				;lines: 1 c: csv while [c: find/tail c lf][lines: lines + 1] lines
 			]
@@ -2501,7 +2502,10 @@ tbl: [
 				self/big-length: length? csv: head clear found
 				;probe reduce ["Next:" big-last big-length]
 				csv: to-string csv 
-				either error? loaded: load-csv csv [probe loaded halt][self/data: loaded]
+				either error? loaded: load-csv csv [probe loaded halt][
+					self/data: loaded
+					;save rejoin [file "-" 1 + length? prev-lengths ".redbin"] loaded
+				]
 				;init face
 				open-red-table/only face state
 			]
