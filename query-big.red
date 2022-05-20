@@ -1,25 +1,11 @@
 Red []
-comment {
-set-current-dir %/C/Users/Toomas/Documents/Red/table
-do %table-template.red
-view [tb: table 1017x817 return panel [origin 0x0 button "Next" [tb/actors/next-chunk tb cols/text: form tb/actors/total/x rows/text: form tb/actors/total/y loaded/text: form to-percent round/to tb/actors/big-last / tb/actors/big-size 0.01] text 30 "Cols:" cols: text 30 text 30 "Rows:" rows: text 50 text 45 "Loaded:" loaded: text 30]]
-
-
-update: does [cols/text: form tb/actors/total/x rows/text: form tb/actors/total/y loaded/text: form to-percent round/to tb/actors/big-last + tb/actors/big-length / tb/actors/big-size 0.01 size/text: append form round/to tb/actors/big-size / 1000000 0.1 "MB"] 
-view [tb: table 617x417 return panel [origin 0x0 button "Prev" [tb/actors/prev-chunk tb update] button "Next" [tb/actors/next-chunk tb update] text 30 "Cols:" cols: text 30 text 30 "Rows:" rows: text 50 text 45 "Loaded:" loaded: text 30 text 30 "Size:" size: text 60]]
-
-;--------------
-}
-
-;cd table
-;set-current-dir %/C/Users/Toomas/Documents/Red/table
 do %table-template.red
 
 update-info: func [face][
 	cols/text: form face/actors/total/x 
 	rows/text: form face/actors/total/y 
-	clear loaded/text ;: form to-percent round/to face/actors/big-last + face/actors/big-length / face/actors/big-size 0.01 
-	clear size/text ;: append form round/to face/actors/big-size / 1000000 0.1 "MB"
+	clear loaded/text 
+	clear size/text 
 ] 
 update-big: func [face][
 	cols/text: form face/actors/total/x 
