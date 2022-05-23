@@ -1,7 +1,6 @@
 Red []
 #include %table-template.red
 
-flatten: function [block [block!]][out: copy [] foreach b block [append out b]]
 render: function [statement][
 	content/data: content/actors/data: copy statement
 	insert/only content/data extract next statement/state/columns 10
@@ -19,6 +18,7 @@ default-sql: [
 	"postgres" "SELECT address, city from address, city WHERE address.city_id = city.city_id"
 ]
 view [
+	on-close [print "Closing..." close connection]
 	panel [
 		origin 0x0 
 		below 
@@ -39,7 +39,7 @@ view [
 			either selection = "sqlite" [
 				dbs/data: ["Chinook"] dbs/selected: 1
 			][
-				dbs/data: copy statement ;flatten 
+				dbs/data: copy statement  
 				dbs/selected: index? find dbs/data select default-db selection
 			]
 			dbs/actors/on-change dbs none
@@ -59,7 +59,7 @@ view [
 				]
 			]
 			change statement  [flat?: yes]
-			tbls/data: copy statement ;flatten 
+			tbls/data: copy statement  
 			tbls/selected: 1
 			change statement [flat?: no]
 			tbls/actors/on-change tbls none
