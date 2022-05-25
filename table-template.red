@@ -94,6 +94,7 @@ tbl: [
 				"Do"       do
 				"Icon"     icon
 			]
+			"Set default"  set-default
 		]
 		"Table" [
 			"Unhide"    [
@@ -148,16 +149,17 @@ tbl: [
 		filter-cmd:  make block! 10
 		;selected-data: make block! 10000
 		;selected-range: make block! 10
-		sizes: make map! 2
+		sizes:   make map! 2
 		sizes/x: make map! copy []
 		sizes/y: make map! copy []
-		frozen-nums: make map! 2
+		frozen-nums:   make map! 2
 		frozen-nums/x: frozen-cols
 		frozen-nums/y: frozen-rows
 		
-		index: make map! 2
+		index:    make map! 2
 		col-type: make map! 5
-		colors: make map! 100
+		colors:   make map! 100
+		defaults: make map! 10
 		
 		no-over: false
 		true-char:  #"^(2714)" ;#"^(2713)"
@@ -306,6 +308,19 @@ tbl: [
 		remove-full-height: func [face [object!] /local found][
 			set-table-default-height face
 			if found: find face/menu/"Column" "Normal height" [change/part found ["Full height" full-height] 2]
+		]
+		
+		set-default: function [face [object!] event [event! integer!]][
+			col: get-col-number face event
+			val: either val: defaults/:col [ask-code/with val][ask-code]
+			either all [
+				series? val: load val
+				empty? val
+			][
+				remove/key defaults col
+			][
+				defaults/:col: val
+			]
 		]
 		
 		; ACCESSING
@@ -821,12 +836,13 @@ tbl: [
 			recycle/on
 		]
 
-		ask-code: function [][
+		ask-code: function [/with default][
 			view [
 				below text "Code:" 
-				code: area 400x100 focus
+				code: area 400x100 focus 
 				across button "OK" [out: code/text unview] 
 				button "Cancel"    [out: none unview]
+				do [if with [code/text: mold/only default]]
 			]
 			out
 		]
@@ -1058,51 +1074,47 @@ tbl: [
 		
 		show-col: function [face [object!] event [event! none!]][]
 		
-		insert-row: function [face [object!] event [event!]][
-			dr: get-draw-row face event
-			r: get-index-row dr
+		add-new-row: function [face [object!]][
 			row: make block! total/x
-			;loop total/x [append row copy ""]
 			repeat col total/x [
 				if face/options/auto-index [col: col + 1]
-				content: either type: col-type/:col [
-					switch/default type [
-						do draw image! [copy []] 
-						load [none]
-						icon [copy ""]
-					][make reduce type 0]
-				][copy ""]
+				content: any [
+					defaults/:col
+					all [
+						type: col-type/:col
+						switch/default type [
+							do draw image! [copy []] 
+							load [none]
+							icon [copy ""]
+						][make reduce type 0]
+					]
+					copy ""
+				]
 				append/only row content
 			]
 			append/only data row
 			total/y: total/y + 1
-			insert/only at row-index r total/y
+		]
+		
+		refresh-view: func [face [object!]][
 			set-last-page
 			adjust-scroller face
 			fill face
 			show-marks face
 		]
+		
+		insert-row: function [face [object!] event [event!]][
+			dr: get-draw-row face event
+			r: get-index-row dr
+			add-new-row face 
+			insert/only at row-index r total/y
+			refresh-view face
+		]
 
 		append-row: function [face [object!]][
-			row: make block! total/x
-			repeat col total/x [
-				if face/options/auto-index [col: col + 1]
-				content: either type: col-type/:col [
-					switch/default type [
-						do draw image! [copy []]
-						load [none]
-						icon [copy ""]
-					][make reduce type 0]
-				][copy ""]
-				append/only row content
-			]
-			append/only data row
-			total/y: total/y + 1
+			add-new-row face
 			append row-index total/y
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 
 		insert-col: function [face [object!] event [event! none!]][
@@ -1111,56 +1123,38 @@ tbl: [
 			repeat i total/y [append data/:i copy ""]
 			total/x: total/x + 1
 			insert/only at col-index c total/x
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 
 		append-col: function [face [object!]][
 			repeat i total/y [append data/:i copy ""]
 			total/x: total/x + 1
 			append col-index total/x
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		remove-row: function [face [object!] event [event!]][
 			dr: get-draw-row face event
 			r: get-index-row dr
 			remove at row-index r
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		remove-col: function [face [object!] event [event!]][
 			dc: get-draw-col face event
 			c: get-index-col dc
 			remove at col-index c
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		restore-row: function [face [object!]][
 			append clear row-index default-row-index
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		restore-col: function [face [object!]][
 			append clear col-index default-col-index
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		delete-row: function [face [object!] event [event!]][
@@ -1172,10 +1166,7 @@ tbl: [
 				if row-index/:i > rd [row-index/:i: row-index/:i - 1]
 			]
 			take/last default-row-index
-			set-last-page
-			adjust-scroller face
-			fill face
-			show-marks face
+			refresh-view face
 		]
 		
 		delete-col: function [face [object!] event [event!]][
@@ -1190,10 +1181,7 @@ tbl: [
 					if col-index/:i > cd [col-index/:i: col-index/:i - 1]
 				]
 				take/last default-col-index
-				set-last-page
-				adjust-scroller face
-				fill face
-				show-marks face
+				refresh-view face
 			]
 		]
 
@@ -2304,6 +2292,7 @@ tbl: [
 				date! time! logic! 
 				image! tuple!   [set-col-type face event]
 
+				set-default     [set-default face event]
 				; SELECTION
 				copy-selected   [copy-selected face]
 				cut-selected    [copy-selected/cut face]
@@ -2404,11 +2393,11 @@ tbl: [
 			init-grid face ;/only
 			init-indices/only face
 			;probe reduce [opts opts/frozen-rows]
-			if opts/frozen-cols [append frozen-cols opts/frozen-cols]
-			if opts/frozen-rows [append frozen-rows opts/frozen-rows]
+			if opts/frozen-cols [append clear frozen-cols opts/frozen-cols]
+			if opts/frozen-rows [append clear frozen-rows opts/frozen-rows]
 			frozen: as-pair length? frozen-cols length? frozen-rows
-			append col-index either opts/col-index [opts/col-index][default-col-index]
-			append row-index either opts/row-index [opts/row-index][default-row-index]
+			append clear col-index either opts/col-index [opts/col-index][default-col-index]
+			append clear row-index either opts/row-index [opts/row-index][default-row-index]
 			either sz: opts/sizes [
 				if sz/x [sizes/x: to-map sz/x]
 				if sz/y [sizes/y: to-map sz/y]
@@ -2426,6 +2415,7 @@ tbl: [
 			][
 				col-type: clear col-type
 			]
+			if opts/defaults [defaults: to-map opts/defaults]
 			
 			box: any [opts/box default-box]
 			top: case/all [
@@ -2483,7 +2473,7 @@ tbl: [
 		open-big-table: function [face [object!] /with file][
 			if any [file file: request-file/title "Open large file"] [
 				self/big-size: length? read/binary file
-				self/big-length: length? csv: head clear find/last read/binary/part file 1'000'000 lf
+				self/big-length: length? csv: head clear find/last read/binary/part file 1000'000 lf
 				face/data: file
 				
 				self/data: load-csv to-string csv
@@ -2498,7 +2488,7 @@ tbl: [
 			self/big-last: big-last + big-length + 1
 			append self/prev-lengths big-length
 			state: save-state/only/with face [col-sizes col-types frozen-cols] ;col-index ? why error?
-			if attempt [found: find/last read/binary/seek/part file big-last 1'000'000 lf] [
+			if attempt [found: find/last read/binary/seek/part file big-last 1000'000 lf] [
 				self/big-length: length? csv: head clear found
 				;probe reduce ["Next:" big-last big-length]
 				csv: to-string csv 
@@ -2543,19 +2533,20 @@ tbl: [
 			compose/only [
 				frozen-rows: (frozen-rows)
 				frozen-cols: (frozen-cols)
-				top: (top)
-				current: (current)
-				col-sizes: (body-of sizes/x)
-				row-sizes: (body-of sizes/y)
-				box: (box)
-				row-index: (row-index)
-				col-index: (col-index)
-				auto-index: (face/options/auto-index)
-				col-type: (body-of col-type)
-				selected: (face/selected)
-				anchor: (anchor)
-				active: (active)
-				names: (body-of names)
+				top:         (top)
+				current:     (current)
+				col-sizes:   (body-of sizes/x)
+				row-sizes:   (body-of sizes/y)
+				box:         (box)
+				row-index:   (row-index)
+				col-index:   (col-index)
+				auto-index:  (face/options/auto-index)
+				col-type:    (body-of col-type)
+				selected:    (face/selected)
+				anchor:      (anchor)
+				active:      (active)
+				names:       (body-of names)
+				defaults:    (body-of defaults)
 				;scroller-x: (scroller/x/position)
 				;scroller-y: (scroller/y/position)
 			]
