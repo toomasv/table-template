@@ -1,0 +1,316 @@
+--== Red 0.6.4 ==--
+Type HELP for starting information.
+
+>> do %../../table/try-odbc.red
+root: 5587/8278, runs: 0, mem: 3263224 => 3222892, mark: 4.8ms, sweep: 1.0ms
+actor/open: connection
+init-odbc
+OPEN-ENVIRONMENT [
+        SQLAllocHandle 0
+        SQLSetEnvAttr 0
+]
+        init-odbc: 0
+OPEN-CONNECTION [
+        SQLAllocHandle 0
+        SQLDriverConnect 0
+]
+actor/open: statement
+OPEN-STATEMENT [
+        SQLAllocHandle 0
+        allocate fetched, 4 bytes @ 04B800F8
+]
+CHANGE actor
+OPEN? actor
+INSERT actor
+OPEN? actor
+FREE-PARAMETERS [
+]
+FREE-COLUMNS [
+]
+FREE-STATEMENT [
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+]
+PREPARE-STATEMENT [
+        SQLPrepare 0
+]
+EXECUTE-STATEMENT [
+        SQLExecute 0
+]
+describe-result
+AFFECTED-ROWS [
+        SQLRowCount 6: 0
+]
+COUNT-COLUMNS [
+        SQLNumResultCols 0
+]
+BIND-COLUMNS [
+        allocate status/value, 4096 bytes @ 04B9D580
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+        allocate name, 256 bytes @ 04B9BC80
+        SQLDescribeCol 0
+        col = 1, sql-type = 65527, col-size = 64
+        allocate buffer, 133120 bytes @ 04B9E588...04BBED87
+        allocate strlen, 4096 bytes @ 04BBED90
+        SQLBindCol 0
+        c-type = 65528
+        free name @ 04B9BC80
+]
+COPY actor
+OPEN? actor
+FETCH-COLUMNS [
+        window:  1024
+        status:  04B9D580
+        SQLFetchScroll 0
+        fetched: 04B800F8 (6 rows)
+        SQLFetchScroll 100
+]
+return-columns
+DIAGNOSE-ERROR [
+        allocate state, 12 bytes @ 04B859A0
+        allocate message, 4096 bytes @ 04BC1588
+        SQLGetDiagRec 0
+
+-----------------------------------------------------------------------------------------------------------------------------------
+04BC1588:  5b00 4d00 6900 6300  7200 6f00 7300 6f00  6600 7400 5d00 5b00  4f00 4400 4200 4300      [.M.i.c.r.o.s.o.f.t.].[.O.D.B.C.
+04BC15A8:  2000 4400 7200 6900  7600 6500 7200 2000  4d00 6100 6e00 6100  6700 6500 7200 5d00       .D.r.i.v.e.r. .M.a.n.a.g.e.r.].
+04BC15C8:  2000 4900 6e00 7600  6100 6c00 6900 6400  2000 6300 7500 7200  7300 6f00 7200 2000       .I.n.v.a.l.i.d. .c.u.r.s.o.r. .
+04BC15E8:  7300 7400 6100 7400  6500                                                               s.t.a.t.e.
+-----------------------------------------------------------------------------------------------------------------------------------
+24000 0 [Microsoft][ODBC Driver Manager] Invalid cursor state
+        SQLGetDiagRec 100
+        free state @ 04B859A0
+        free message @ 04BC1588
+]
+INSERT actor
+OPEN? actor
+FREE-PARAMETERS [
+]
+FREE-COLUMNS [
+]
+FREE-STATEMENT [
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+]
+PREPARE-STATEMENT [
+        SQLPrepare 0
+]
+EXECUTE-STATEMENT [
+        SQLExecute 0
+]
+describe-result
+AFFECTED-ROWS [
+        SQLRowCount 0: 0
+]
+COUNT-COLUMNS [
+        SQLNumResultCols 0
+]
+INSERT actor
+OPEN? actor
+FREE-PARAMETERS [
+]
+FREE-COLUMNS [
+]
+FREE-STATEMENT [
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+]
+PREPARE-STATEMENT [
+        SQLPrepare 0
+]
+EXECUTE-STATEMENT [
+        SQLExecute 0
+]
+describe-result
+AFFECTED-ROWS [
+        SQLRowCount 23: 0
+]
+COUNT-COLUMNS [
+        SQLNumResultCols 0
+]
+BIND-COLUMNS [
+        free status/value @ 04B9D580
+        allocate status/value, 4096 bytes @ 04B9D580
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+        allocate name, 256 bytes @ 04B9BC80
+        SQLDescribeCol 0
+        col = 1, sql-type = 65527, col-size = 64
+        allocate buffer, 133120 bytes @ 04B9E588...04BBED87
+        allocate strlen, 4096 bytes @ 04BBED90
+        SQLBindCol 0
+        c-type = 65528
+        free name @ 04B9BC80
+]
+CHANGE actor
+OPEN? actor
+COPY actor
+OPEN? actor
+FETCH-COLUMNS [
+        window:  1024
+        status:  04B9D580
+        SQLFetchScroll 0
+        fetched: 04B800F8 (23 rows)
+        SQLFetchScroll 100
+]
+return-columns
+DIAGNOSE-ERROR [
+        allocate state, 12 bytes @ 04B859A0
+        allocate message, 4096 bytes @ 04BC1588
+        SQLGetDiagRec 0
+
+-----------------------------------------------------------------------------------------------------------------------------------
+04BC1588:  5b00 4d00 6900 6300  7200 6f00 7300 6f00  6600 7400 5d00 5b00  4f00 4400 4200 4300      [.M.i.c.r.o.s.o.f.t.].[.O.D.B.C.
+04BC15A8:  2000 4400 7200 6900  7600 6500 7200 2000  4d00 6100 6e00 6100  6700 6500 7200 5d00       .D.r.i.v.e.r. .M.a.n.a.g.e.r.].
+04BC15C8:  2000 4900 6e00 7600  6100 6c00 6900 6400  2000 6300 7500 7200  7300 6f00 7200 2000       .I.n.v.a.l.i.d. .c.u.r.s.o.r. .
+04BC15E8:  7300 7400 6100 7400  6500                                                               s.t.a.t.e.
+-----------------------------------------------------------------------------------------------------------------------------------
+24000 0 [Microsoft][ODBC Driver Manager] Invalid cursor state
+        SQLGetDiagRec 100
+        free state @ 04B859A0
+        free message @ 04BC1588
+]
+CHANGE actor
+OPEN? actor
+INSERT actor
+OPEN? actor
+FREE-PARAMETERS [
+]
+FREE-COLUMNS [
+]
+FREE-STATEMENT [
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+]
+PREPARE-STATEMENT [
+        SQLPrepare 0
+]
+EXECUTE-STATEMENT [
+        SQLExecute 0
+]
+describe-result
+AFFECTED-ROWS [
+        SQLRowCount 200: 0
+]
+COUNT-COLUMNS [
+        SQLNumResultCols 0
+]
+BIND-COLUMNS [
+        free status/value @ 04B9D580
+        allocate status/value, 4096 bytes @ 04B9D580
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+SET-STATEMENT [
+        SQLSetStmtAttr 0
+]
+        allocate name, 256 bytes @ 04B9BC80
+        SQLDescribeCol 0
+        col = 1, sql-type = 5, col-size = 5
+        allocate buffer, 4096 bytes @ 04B9E588...04B9F587
+        allocate strlen, 4096 bytes @ 04B9F590
+        SQLBindCol 0
+        c-type = 4
+        SQLDescribeCol 0
+        col = 2, sql-type = 65527, col-size = 45
+        allocate buffer, 94208 bytes @ 04BA0598...04BB7597
+        allocate strlen, 4096 bytes @ 04BB75A0
+        SQLBindCol 0
+        c-type = 65528
+        SQLDescribeCol 0
+        col = 3, sql-type = 65527, col-size = 45
+        allocate buffer, 94208 bytes @ 04BB85A8...04BCF5A7
+        allocate strlen, 4096 bytes @ 04BCF5B0
+        SQLBindCol 0
+        c-type = 65528
+        SQLDescribeCol 0
+        col = 4, sql-type = 93, col-size = 19
+        allocate buffer, 16384 bytes @ 04BD05B8...04BD45B7
+        allocate strlen, 4096 bytes @ 04BD47E0
+        SQLBindCol 0
+        c-type = 93
+        free name @ 04B9BC80
+]
+COPY actor
+OPEN? actor
+FETCH-COLUMNS [
+        window:  1024
+        status:  04B9D580
+        SQLFetchScroll 0
+        fetched: 04B800F8 (200 rows)
+        SQLFetchScroll 100
+]
+return-columns
+DIAGNOSE-ERROR [
+        allocate state, 12 bytes @ 04B859A0
+        allocate message, 4096 bytes @ 04BD71F8
+        SQLGetDiagRec 0
+
+-----------------------------------------------------------------------------------------------------------------------------------
+04BD71F8:  5b00 4d00 6900 6300  7200 6f00 7300 6f00  6600 7400 5d00 5b00  4f00 4400 4200 4300      [.M.i.c.r.o.s.o.f.t.].[.O.D.B.C.
+04BD7218:  2000 4400 7200 6900  7600 6500 7200 2000  4d00 6100 6e00 6100  6700 6500 7200 5d00       .D.r.i.v.e.r. .M.a.n.a.g.e.r.].
+04BD7238:  2000 4900 6e00 7600  6100 6c00 6900 6400  2000 6300 7500 7200  7300 6f00 7200 2000       .I.n.v.a.l.i.d. .c.u.r.s.o.r. .
+04BD7258:  7300 7400 6100 7400  6500                                                               s.t.a.t.e.
+-----------------------------------------------------------------------------------------------------------------------------------
+24000 0 [Microsoft][ODBC Driver Manager] Invalid cursor state
+        SQLGetDiagRec 100
+        free state @ 04B859A0
+        free message @ 04BD71F8
+]
+INSERT actor
+OPEN? actor
+FREE-PARAMETERS [
+]
+FREE-COLUMNS [
+]
+FREE-STATEMENT [
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+        SQLFreeStmt 0
+]
+PREPARE-STATEMENT [
+        SQLPrepare 0
+]
+EXECUTE-STATEMENT [
+        SQLExecute 65535
+DIAGNOSE-ERROR [
+        allocate state, 12 bytes @ 04B85B98
+        allocate message, 4096 bytes @ 04BD47E0
+        SQLGetDiagRec 0
+
+-----------------------------------------------------------------------------------------------------------------------------------
+04BD47E0:  5b00 4d00 7900 5300  5100 4c00 5d00 5b00  4f00 4400 4200 4300  2000 3800 2e00 3000      [.M.y.S.Q.L.].[.O.D.B.C. .8...0.
+04BD4800:  2800 7700 2900 2000  4400 7200 6900 7600  6500 7200 5d00 5b00  6d00 7900 7300 7100      (.w.). .D.r.i.v.e.r.].[.m.y.s.q.
+04BD4820:  6c00 6400 2d00 3800  2e00 3000 2e00 3200  3900 5d00                                     l.d.-.8...0...2.9.].
+-----------------------------------------------------------------------------------------------------------------------------------
+HY000 517 [MySQL][ODBC 8.0(w) Driver][mysqld-8.0.29]
+        SQLGetDiagRec 100
+        free state @ 04B85B98
+        free message @ 04BD47E0
+]
+*** Script Error: ODBC error: ["HY000" 517 "[MySQL][ODBC 8.0(w) Driver][mysqld-8.0.29]"]
+*** Where: execute-statement
+*** Near : port/state describe-result port/state
+*** Stack: do-file context view do-events do-actor do-safe
