@@ -629,7 +629,7 @@ tbl: [
 			base: https://raw.githubusercontent.com/google/material-design-icons/master/png/
 			mi-lib: ""
 			either typ [mi-lib: copy typ if typ = "outline" [append mi-lib "d"]][typ: "baseline"]
-			load to-url rejoin [base lib "/" name "/materialicons" mi-lib "/24dp/1x/" typ "_" name "_black_24dp.png"]
+			load to-url probe rejoin [base lib "/" name "/materialicons" mi-lib "/24dp/1x/" typ "_" name "_black_24dp.png"]
 		] 
 
 		fill-cell: function [
@@ -756,11 +756,7 @@ tbl: [
 					clip (p0 + 1) (p1 - 1) 
 					(reduce ['text p0 + 4x2 text])
 				]
-				;either none? pick row draw-x [
-				;	poke row draw-x cell
-				;][
-					insert/only at row draw-x cell
-				;]
+				insert/only at row draw-x cell
 			][
 				case [
 					draw?: all [t: col-type/:data-x t = 'draw][
@@ -769,7 +765,7 @@ tbl: [
 					all [t: col-type/:data-x t = 'do][
 						text: form either data/:data-y/:data-x [do data/:data-y/:data-x][dummy]
 					]
-					true [;probe reduce [data-y data-x index-y index-x draw-y draw-x sheet? current]
+					true [
 						text: form case [
 							data-x = 0 [either sheet? [index-y][data-y]] 
 							data-y = 0 [either sheet? [index-x][data-x]] 
@@ -787,11 +783,7 @@ tbl: [
 						true  [['text       p0 + 4x2  text]]
 					])
 				]
-				;either none? pick row draw-x [
-				;	poke row draw-x cell
-				;][
-					insert/only at row draw-x cell
-				;]
+				insert/only at row draw-x cell
 			]
 		]
 
@@ -1014,7 +1006,11 @@ tbl: [
 		
 		expand-virtual: function [cx addr /local nx ny r c r2 c2][
 			parse cx [any [
-				change ["R" copy r int "C" copy c int any ws #":" any ws "R" copy r2 int "C" copy c2 int] (
+				change [
+					["R" copy r  int "C" copy c  int | "C" copy c  int "R" copy r  int] 
+					any ws #":" any ws 
+					["R" copy r2 int "C" copy c2 int | "C" copy c2 int "R" copy r2 int]
+				] (
 					r1: to-integer r
 					y-diff: subtract to-integer r2 r1 
 					c1: to-integer c
@@ -1035,7 +1031,7 @@ tbl: [
 					]
 					out
 				)
-			|	change ["R" copy r int "C" copy c int] (
+			|	change ["R" copy r int "C" copy c int | "C" copy c int "R" copy r int] (
 					y: pick row-index to-integer r
 					x: pick col-index to-integer c
 					change-to-address x y
@@ -1057,7 +1053,6 @@ tbl: [
 			|	change ["R" copy r int] (
 					x: addr/x ;pick col-index addr/x
 					y: pick row-index r: to-integer r
-					;probe reduce ["addr/x" addr/x "x" x "r" r "y" y "ci" col-index]
 					change-to-address x y
 				)
 			| 	change ["C" copy c int any ws #":" any ws "C" copy c2 int] (
@@ -1077,7 +1072,6 @@ tbl: [
 			|	change ["C" copy c int] (
 					x: pick col-index c: to-integer c
 					y: addr/y
-					;probe reduce ["addr" addr "x" x "c" c "y" y]
 					change-to-address x y
 				)
 			|	skip
