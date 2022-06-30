@@ -629,7 +629,7 @@ tbl: [
 			base: https://raw.githubusercontent.com/google/material-design-icons/master/png/
 			mi-lib: ""
 			either typ [mi-lib: copy typ if typ = "outline" [append mi-lib "d"]][typ: "baseline"]
-			load to-url probe rejoin [base lib "/" name "/materialicons" mi-lib "/24dp/1x/" typ "_" name "_black_24dp.png"]
+			load to-url rejoin [base lib "/" name "/materialicons" mi-lib "/24dp/1x/" typ "_" name "_black_24dp.png"]
 		] 
 
 		fill-cell: function [
@@ -987,10 +987,10 @@ tbl: [
 			if all [tbl-editor tbl-editor/visible?] [tbl-editor/visible?: no]
 		]
 		
-		change-to-address: function [x [integer!] y [integer!]][
+		change-to-address: function [x [integer!] y [integer!] c [integer!] r [integer!]][
 			rejoin case [
-				x = 0 [[" " y]]
-				y = 0 [[" " x]]
+				x = 0 [[" " either sheet? [r][y]]]
+				y = 0 [[" " either sheet? [c][x]]]
 				all [0 < y 0 < x] [[" data/" y "/" x]]
 				all [0 > y 0 > x] [
 					either all [v: virtual-rows/y v: v/data/x] [
@@ -1026,15 +1026,15 @@ tbl: [
 						y: pick row-index my: r1 + (ny * y-cf)
 						repeat nx (absolute x-diff) + 1 [
 							x: pick col-index mx: c1 + (nx * x-cf)
-							append out change-to-address x y
+							append out change-to-address x y mx my
 						]
 					]
 					out
 				)
 			|	change ["R" copy r int "C" copy c int | "C" copy c int "R" copy r int] (
-					y: pick row-index to-integer r
-					x: pick col-index to-integer c
-					change-to-address x y
+					y: pick row-index r: to-integer r
+					x: pick col-index c: to-integer c
+					change-to-address x y c r
 				)
 			| 	change ["R" copy r int any ws #":" any ws "R" copy r2 int] (
 					r1: to-integer r
@@ -1045,15 +1045,15 @@ tbl: [
 					r1: r1 - y-cf
 					x: addr/x ;pick col-index addr/x
 					repeat ny (absolute y-diff) + 1 [
-						y: pick row-index r1 + (ny * y-cf)
-						append out change-to-address x y
+						y: pick row-index my: r1 + (ny * y-cf)
+						append out change-to-address x y index? find col-index x my
 					]
 					out
 				)
 			|	change ["R" copy r int] (
 					x: addr/x ;pick col-index addr/x
 					y: pick row-index r: to-integer r
-					change-to-address x y
+					change-to-address x y index? find col-index x r
 				)
 			| 	change ["C" copy c int any ws #":" any ws "C" copy c2 int] (
 					c1: to-integer c
@@ -1064,15 +1064,15 @@ tbl: [
 					c1: c1 - x-cf
 					y: addr/y
 					repeat nx (absolute x-diff) + 1 [
-						x: pick col-index c1 + (nx * x-cf)
-						append out change-to-address x y
+						x: pick col-index mx: c1 + (nx * x-cf)
+						append out change-to-address x y mx index? find row-index y
 					]
 					out
 				)
 			|	change ["C" copy c int] (
 					x: pick col-index c: to-integer c
 					y: addr/y
-					change-to-address x y
+					change-to-address x y c index? find row-index y
 				)
 			|	skip
 			]]
@@ -1138,7 +1138,7 @@ tbl: [
 										system/view/auto-sync?: on
 									][
 										cx: copy tx
-										expand-virtual cx addr ;parse cx: copy tx bind virtual-rule :update-data
+										expand-virtual cx addr 
 										cx: virtual-cols/(addr/x)/code/(addr/y): bind load/all cx face/extra/table/actors
 										dx: virtual-cols/(addr/x)/data/(addr/y): do cx
 										cell: face/extra/cell
@@ -1148,6 +1148,7 @@ tbl: [
 								]
 							]
 						]
+						
 						addr/y < 0 [
 							either empty? tx: virtual-rows/(addr/y)/source/(addr/x): face/text [
 								system/view/auto-sync?: off
@@ -1158,7 +1159,7 @@ tbl: [
 								system/view/auto-sync?: on
 							][
 								cx: copy tx
-								expand-virtual cx addr ;parse cx: copy tx bind virtual-rule :update-data
+								expand-virtual cx addr 
 								cx: virtual-rows/(addr/y)/code/(addr/x): bind load/all cx face/extra/table/actors
 								dx: virtual-rows/(addr/y)/data/(addr/x): do cx
 								cell: face/extra/cell
@@ -2795,7 +2796,7 @@ tbl: [
 				self/big-length: length? csv: head clear found
 				;probe reduce ["Next:" big-last big-length]
 				csv: to-string csv 
-				either error? loaded: load-csv csv [probe loaded halt][
+				either error? loaded: load-csv csv [loaded halt][
 					self/data: loaded
 					;save rejoin [file "-" 1 + length? prev-lengths ".redbin"] loaded
 				]
@@ -2813,7 +2814,7 @@ tbl: [
 				;probe reduce ["Prev:" big-last big-length]
 				csv: read/binary/seek/part file big-last big-length
 				csv: to-string csv 
-				either error? loaded: load-csv csv [probe loaded halt][self/data: loaded]
+				either error? loaded: load-csv csv [loaded halt][self/data: loaded]
 				;init face
 				open-red-table/only face state
 			]
