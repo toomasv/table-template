@@ -413,7 +413,7 @@ tbl: [
 				col-index/(draw-col - frozen/x + current/x)
 			]
 		]
-
+		
 		get-data-row: function [draw-row [integer!]][
 			either draw-row <= frozen/y [
 				frozen-rows/:draw-row
@@ -895,13 +895,18 @@ tbl: [
 			face/draw: face/draw
 		]
 
-		ask-code: function [/with default][
+		ask-code: function [/with default /txt deftext][
 			view [
 				below text "Code:" 
-				code: area 400x100 focus 
+				code: area 400x100 focus with [
+					case [
+						with [text: mold/only default]
+						txt  [text: copy deftext]
+					]
+				]
 				across button "OK" [out: code/text unview] 
 				button "Cancel"    [out: none unview]
-				do [if with [code/text: mold/only default]]
+				;do []
 			]
 			out
 		]
@@ -1112,21 +1117,46 @@ tbl: [
 										]
 									][draw-cell/11/3: tx]
 									;Update virtual rows and cols
-									foreach y values-of virtual-rows [
-										if y/code [
-											foreach [x code] y/code [ 
-												y/data/:x: do code
+									system/view/auto-sync?: off
+									foreach [row vr] virtual-rows [
+										if code: vr/default [
+											repeat gx total/x - top/x [
+												index-x: top/x + gx
+												col: col-index/:index-x
+												if not vr/source/:col [
+													expand-virtual cy: copy code as-pair col row
+													vr/data/:col: do bind load/all cy self
+												]
+											]
+											fill face/extra/table
+										]
+										if vr/code [
+											foreach [x code] vr/code [ 
+												vr/data/:x: do code
 											]
 										]
 									]
-									foreach v values-of virtual-cols [
-										if v/code [
-											foreach [k y] v/code [ 
-												v/data/:k: do y
+									foreach [col vc] virtual-cols [
+										if code: vc/default [
+											repeat gy total/y - top/y [
+												index-y: top/y + gy
+												row: row-index/:index-y
+												if not vc/source/:row [
+													expand-virtual cx: copy code as-pair col row
+													vc/data/:row: do bind load/all cx self
+												]
+											]
+											fill face/extra/table
+										]
+										if vc/code [
+											foreach [y code] vc/code [ 
+												vc/data/:y: do code
 											]
 										]
-									]
 									;face/draw: face/draw
+									]
+									show face
+									system/view/auto-sync?: on
 								]
 								addr/x < 0 [
 									either empty? tx: virtual-cols/(addr/x)/source/(addr/y): face/text [
@@ -1185,21 +1215,44 @@ tbl: [
 		]
 
 		edit-column: function [face [object!] event [event! none!]][
-			if code: ask-code [
-				code: load/all code 
-				code: back insert next code '_
-				col: get-col-number face event
-				;if auto: face/options/auto-col [col: col - 1]
-				;if not all [auto col = 0][
-				if col <> 0 [
-					foreach i at row-index top/y + 1 [
-						row: data/(row-index/:i)
-						change/only code row/:col
-						if res: attempt [do head code][
-							row/:col: either series? res [head res][res]
+			col: get-col-number face event
+			case [
+				col > 0 [ ; Don't edit auto-col
+					if code: ask-code [
+						code: load/all code 
+						code: back insert next code '_
+						foreach i at row-index top/y + 1 [
+							row: data/(row-index/:i)
+							change/only code row/:col
+							if res: attempt [do head code][
+								row/:col: either series? res [head res][res]
+							]
 						]
+						fill face
 					]
-					fill face
+				]
+				col < 0 [
+					if code: either s: virtual-cols/:col/default [ask-code/txt s][ask-code] [
+						system/view/auto-sync?: off
+						repeat gy total/y - top/y [
+							index-y: top/y + gy
+							row: row-index/:index-y
+							either empty? virtual-cols/:col/default: copy code [
+								virtual-cols/:col/default: none
+								if not virtual-cols/:col/source/:row [
+									remove/key virtual-cols/:col/data row
+								]
+							][
+								if not virtual-cols/:col/source/:row [
+									expand-virtual cx: copy code as-pair col row
+									virtual-cols/:col/data/:row: do bind load/all cx self
+								]
+							]
+						]
+						fill face
+						show face
+						system/view/auto-sync?: on
+					] 
 				]
 			]
 		]
@@ -1315,7 +1368,8 @@ tbl: [
 		]
 
 		add-virtual-row: function [face [object!]][
-			vr: object [source: make map! x: total/x code: make map! x data: make map! x]
+			x: total/x
+			vr: object [addr: none source: make map! x code: make map! x data: make map! x default: none]
 			len: negate 1 + length? virtual-rows
 			virtual-rows/:len: vr
 			total/y: total/y + 1
@@ -1323,7 +1377,8 @@ tbl: [
 		]
 		
 		add-virtual-col: function [face [object!]][
-			vc: object [source: make map! y: total/y code: make map! y data: make map! y]
+			y: total/y
+			vc: object [addr: none source: make map! y code: make map! y data: make map! y default: none]
 			len: negate 1 + length? virtual-cols
 			virtual-cols/:len: vc
 			total/x: total/x + 1
