@@ -1781,7 +1781,6 @@ tbl: [
 			c: data-col
 			;if auto: face/options/auto-col [c: c - 1];col-index/(col - 1)
 			either block? crit [
-				
 				switch/default type?/word w: crit/1 [
 					word! [
 						case [
@@ -1859,13 +1858,18 @@ tbl: [
 					]
 				]
 			][  ;Single entry
-				;either all [auto  col = 1] [
-				either data-col = 0 [
-					filtered/y: to-block crit
-				][
-					forall row-index [
-						row: row-index/1
-						if data/:row/:c = crit [append filtered/y row]
+				case [
+					data-col > 0 [
+						forall row-index [
+							row: row-index/1
+							if data/:row/:c = crit [append filtered/y row]
+						]
+					]
+					data-col = 0 [
+						filtered/y: to-block crit
+					]
+					data-col < 0 [
+						
 					]
 				]
 			]
@@ -2609,13 +2613,7 @@ tbl: [
 				insert-virtual-col [insert-virtual-col face event]
 				append-virtual-col [append-virtual-col face]
 				
-				find-in-col     [
-					if code: ask-code [
-						code: load code
-						col: get-col-number face event
-						find-in-col face col code
-					]
-				]
+				find-in-col     [find-in-col face event]
 				
 				move-col-first  [move-col face event 'first]
 				move-col-left   [move-col face event 'left]
@@ -2708,21 +2706,35 @@ tbl: [
 			show-marks face
 		]
 
-		find-in-col: function [face [object!] col [integer!] code [any-type!] /extern filtered row-index][
-			;append clear filtered/ frozen-rows ;include frozen rows in result first
-			clear filtered/y
-			row-index: skip row-index top/y
-			filter-rows face col code
-			row-index: head row-index
-			clear face/selected
-			foreach r filtered/y [append face/selected as-pair col r]
-			if not empty? face/selected [
-				;current/y: top/y
-				scroll face 'y filtered/y/1 - current/y - 1 
-				;adjust-scroller face
-				;fill face
-				marks/-1: 0.220.0.220
-				show-marks face
+		find-in-col: function [face [object!] event [event! integer!] /extern filtered row-index][
+			if code: ask-code [
+				code: load code
+				col: case [
+					event? event [get-col-number face event]
+					sheet? [col-index/:col]
+					true   [col]
+				]
+
+				;append clear filtered/ frozen-rows ;include frozen rows in result first
+				clear filtered/y
+				row-index: skip head row-index top/y
+				filter-rows face col code
+				row-index: head row-index
+				clear face/selected
+				index-col: index? find col-index col
+				foreach r filtered/y [
+					index-row: index? find row-index r 
+					append face/selected as-pair index-col index-row
+				]
+				if not empty? face/selected [
+					;current/y: top/y
+					first-found: index? find row-index filtered/y/1
+					scroll face 'y first-found - current/y - 1 
+					;adjust-scroller face
+					;fill face
+					marks/-1: 0.220.0.220
+					show-marks face
+				]
 			]
 		]
 		
