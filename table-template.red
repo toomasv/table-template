@@ -512,8 +512,8 @@ tbl: [
 
 		init-indices: func [face [object!] /only /local i][
 			;Prepare indices
-			indices/x: make map! total/x                             ;Room for index for each column
-			indices/y: make map! 10 ;total/y                         ;Room for index for some rows     @@ May be on request?
+			indices/x: make map! min 10 total/x                             ;Room for index for each column
+			indices/y: make map! min 10 total/y                         ;Room for index for some rows     @@ May be on request?
 			either default-row-index [
 				clear filtered/y
 				clear row-index
@@ -564,8 +564,8 @@ tbl: [
 				repeat j grid/x  [
 					s: (as-pair j i) - 1 * box
 					text: form case [
-						all [auto-col? j = 1] [i] ;(j - 1)
-						all [auto-row? i = 1] [j] ;(j - 1)
+						all [auto-col? j = 1] [either sheet? or not auto-row? [i][i - 1]]
+						all [auto-row? i = 1] [either sheet? or not auto-col? [j][j - 1]]
 						true [any [data/:i/(col-index/:j) dummy]]
 					]
 					;Cell structure
